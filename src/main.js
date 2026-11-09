@@ -11,7 +11,7 @@ import { buildWorld } from './world.js';
 import { buildInterior } from './interior.js';
 import { buildAnimals } from './animals.js';
 import { Character, turnTowards } from './characters.js';
-import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START } from './quests.js';
+import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START, FINAL_REWARD } from './quests.js';
 import { glowTexture } from './textures.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,7 +57,7 @@ addEventListener('resize', () => {
 
 // ---------- state ----------
 const SAVE_KEY = 'castle-craig-quest-3d-v3'; // v3: the real-world map
-const fresh = () => ({ x: START.at[0], z: START.at[1], yaw: START.facing + Math.PI, picked: [], bag: [], quests: {}, finished: false, inside: false });
+const fresh = () => ({ x: START.at[0], z: START.at[1], yaw: START.facing + Math.PI, picked: [], bag: [], quests: {}, finished: false, inside: false, points: 0, badges: [], perks: [], alpacasHome: 0 });
 let state = fresh();
 try {
   const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
@@ -137,6 +137,17 @@ function start(assets) {
     return { def: n, char: c, tag };
   });
 
+  // labels over the escaped alpacas while you're looking for them
+  const lostLabels = animals.lost.map((a) => {
+    const d = document.createElement('div');
+    d.className = 'npc-tag';
+    d.innerHTML = '<span class="mark">?</span><span class="name">Lost alpaca</span>';
+    const o = new CSS2DObject(d);
+    o.position.set(0, 2.4, 0);
+    a.root.add(o);
+    return { a, o };
+  });
+
   // residents chatting at the smoking shelter
   const ambient = AMBIENT.map((a) => {
     const c = makeChar(a.model, a.tint);
@@ -212,6 +223,7 @@ function start(assets) {
     if (KEYMAP[e.code]) { keys.add(KEYMAP[e.code]); e.preventDefault(); }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.add('run');
     if (['KeyE', 'Space', 'Enter'].includes(e.code)) { e.preventDefault(); if (!e.repeat) act(); }
+    if (e.code === 'KeyV' && !e.repeat) toggleView();
   });
   addEventListener('keyup', (e) => {
     if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]);
@@ -219,7 +231,7 @@ function start(assets) {
   });
   addEventListener('blur', () => keys.clear());
 
-  const cam = { yaw: state.yaw, pitch: 0.32, dist: innerWidth < innerHeight ? 9 : 7 };
+  const cam = { yaw: state.yaw, pitch: 0.32, dist: innerWidth < innerHeight ? 9 : 7, first: false };
   const joy = { id: null, x0: 0, y0: 0, dx: 0, dy: 0 };
   const look = { id: null, x: 0, y: 0 };
   const canvas = renderer.domElement;
@@ -251,7 +263,19 @@ function start(assets) {
   };
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('wheel', (e) => { cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.01, 3.5, L.view.inside ? 6 : 16); }, { passive: true });
+  // zooming all the way in switches to first person; zooming out switches back
+  canvas.addEventListener('wheel', (e) => {
+    if (cam.first) { if (e.deltaY > 0) toggleView(); return; }
+    const before = cam.dist;
+    cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.01, 3.5, L.view.inside ? 6 : 16);
+    if (e.deltaY < 0 && before <= 3.5) toggleView();
+  }, { passive: true });
+  function toggleView() {
+    cam.first = !cam.first;
+    if (!cam.first) cam.dist = Math.max(cam.dist, 4.5);
+    toast(cam.first ? 'First-person view (press V to switch back)' : 'Third-person view');
+  }
+  $('view').addEventListener('click', toggleView);
   function showJoystick(x, y, dx, dy) {
     const j = $('joystick');
     j.hidden = false;
@@ -307,14 +331,30 @@ function start(assets) {
     return best;
   }
 
+  function grant(reward) {
+    state.points += reward.points;
+    if (!state.badges.includes(reward.badge)) state.badges.push(reward.badge);
+    if (reward.perk && !state.perks.includes(reward.perk)) state.perks.push(reward.perk);
+    const el = $('reward');
+    el.innerHTML = `<span class="badge-icon">★</span><b>${reward.badge}</b><span>+${reward.points} recovery points</span>${reward.perkText ? `<em>${reward.perkText}</em>` : ''}`;
+    el.hidden = false;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(grant.timer);
+    grant.timer = setTimeout(() => { el.hidden = true; }, 4200);
+  }
+
   function complete(npc, lines) {
     state.quests[npc.def.id] = 'done';
     npc.char.playOnce('Cheer');
     player.playOnce('Cheer');
+    const reward = npc.def.quest.reward;
     const all = NPCS.every((n) => state.quests[n.id] === 'done');
-    const extra = all && !state.finished ? ['Every quest is complete. Thanks for playing Castle Craig Quest!'] : [];
+    const extra = all && !state.finished ? [`Every quest is complete! You've earned the ${FINAL_REWARD.badge} badge. Thanks for playing Castle Craig Quest!`] : [];
+    const rewardLine = reward ? [`Reward: the ${reward.badge} badge and ${reward.points} recovery points.${reward.perkText ? ' ' + reward.perkText : ''}`] : [];
+    if (reward) grant(reward);
+    if (all && !state.finished) setTimeout(() => grant(FINAL_REWARD), 4400);
     if (all) state.finished = true;
-    say(npc.def.name, [...lines, `Quest complete: ${npc.def.quest.title}`, ...extra]);
+    say(npc.def.name, [...lines, `Quest complete: ${npc.def.quest.title}`, ...rewardLine, ...extra]);
     save();
     renderHud();
   }
@@ -327,7 +367,7 @@ function start(assets) {
     if (!npc) {
       const a = nearestAmbient();
       if (a) { say(a.def.name, a.def.lines); return; }
-      const pat = animals.interact(state.x, state.z);
+      const pat = animals.interact(state.x, state.z, isActive('keeper'));
       if (pat) toast(pat, 'good');
       return;
     }
@@ -355,6 +395,14 @@ function start(assets) {
         run = { npc, left: q.timeLimit, idx: 0 };
         toast(`Run to ${q.checkpoints[0].name}!`);
       });
+    } else if (q.type === 'herd') {
+      if (!status) {
+        state.quests[id] = 'active';
+        say(npc.def.name, [q.intro, `New quest: ${q.title}`]);
+      } else {
+        const h = animals.herdStatus();
+        say(npc.def.name, [`${q.waiting} (${h.home} of ${q.count} home${h.following ? `, ${h.following} following you` : ''}.)`]);
+      }
     } else if (q.type === 'sneak') {
       if (!status) {
         state.quests[id] = 'active';
@@ -390,7 +438,22 @@ function start(assets) {
 
   const carryingVape = () => state.bag.includes(sneakNpc.quest.item);
 
+  const keeper = npcs.find((n) => n.def.quest.type === 'herd');
+  if (state.quests[keeper.def.id] === 'done') animals.restoreHome(3);
+  else animals.restoreHome(state.alpacasHome || 0);
+
   function updateQuests(dt, realDt) {
+    // lost alpacas coming home
+    if (isActive(keeper.def.id)) {
+      const h = animals.herdStatus();
+      if (h.home !== state.alpacasHome) {
+        state.alpacasHome = h.home;
+        renderHud();
+        if (h.home >= keeper.def.quest.count) complete(keeper, [keeper.def.quest.done]);
+        else toast(`Alpaca home! ${h.home} of ${keeper.def.quest.count}`, 'good');
+        save();
+      }
+    }
     // timed run
     if (run && dlg.hidden) {
       const q = run.npc.def.quest;
@@ -497,11 +560,16 @@ function start(assets) {
         p.className = 'progress';
         if (q.type === 'fetch') p.textContent = q.items.every((i) => state.bag.includes(i)) ? `Return to ${n.name}` : `Search the grounds`;
         if (q.type === 'timed') p.textContent = `Talk to ${n.name} to start the clock`;
-        if (q.type === 'sneak') p.textContent = carryingVape() ? 'Reach the castle door unseen' : 'Find the vape behind the walled garden';
+        if (q.type === 'sneak') p.textContent = carryingVape() ? 'Reach the front door unseen' : 'Find the vape north of the walled garden';
+        if (q.type === 'herd') p.textContent = `${state.alpacasHome || 0} of ${q.count} alpacas back in the paddock`;
         li.appendChild(p);
       }
       log.appendChild(li);
     }
+    $('points').textContent = `${state.points} recovery points`;
+    const badges = $('badges');
+    badges.innerHTML = state.badges.length ? '' : '<li class="empty">None yet</li>';
+    for (const b of state.badges) { const li = document.createElement('li'); li.textContent = `★ ${b}`; badges.appendChild(li); }
     const inv = $('inventory');
     inv.innerHTML = state.bag.length ? '' : '<li class="empty">Empty</li>';
     for (const id of state.bag) {
@@ -550,6 +618,7 @@ function start(assets) {
     }
     if (run) { const cp = run.npc.def.quest.checkpoints[run.idx]; dot(cp.x, cp.z, 5, '#ffcc55'); }
     if (carryingVape()) dot(patrol.x, patrol.z, 3.5, '#ff4a3a');
+    if (isActive(keeper.def.id)) for (const a of animals.lost) if (!a.home) dot(a.x, a.z, 3.5, a.state === 'follow' ? '#fff3c0' : '#e8a050');
     // player arrow
     mctx.save();
     mctx.translate(w / 2, h / 2);
@@ -561,6 +630,7 @@ function start(assets) {
 
   // ---------- movement and camera ----------
   const WALK = 4.2, RUN = 8.5;
+  let stepPhase = 0;
   function updatePlayer(dt) {
     let fx = 0, fz = 0;
     if (dlg.hidden) {
@@ -574,7 +644,7 @@ function start(assets) {
     const mag = Math.min(1, Math.hypot(fx, fz));
     if (mag > 0.08) {
       const running = keys.has('run') || Math.hypot(joy.dx, joy.dy) > 0.9;
-      const speed = (running ? RUN : WALK) * (touch ? Math.max(mag, 0.4) : 1);
+      const speed = (running ? RUN * (state.perks.includes('shoes') ? 1.15 : 1) : WALK) * (touch ? Math.max(mag, 0.4) : 1);
       const nx = fx / Math.hypot(fx, fz), nz = fz / Math.hypot(fx, fz);
       const sx = nx * speed * dt, sz = nz * speed * dt;
       if (!L.blocked(state.x + sx, state.z)) state.x += sx;
@@ -585,13 +655,39 @@ function start(assets) {
       if (!player.busy) player.play('Idle', 0.25);
     }
     checkPickups();
+    const movingNow = mag > 0.08 && dlg.hidden;
+    const runningNow = movingNow && (keys.has('run') || Math.hypot(joy.dx, joy.dy) > 0.9);
+    moveAmount += ((movingNow ? 1 : 0) - moveAmount) * Math.min(1, dt * 3);
+    runAmount += ((runningNow ? 1 : 0) - runAmount) * Math.min(1, dt * 2.5);
+    stepPhase += dt * (runningNow ? 11 : 7) * (movingNow ? 1 : 0);
     player.root.position.set(state.x, L.standHeight(state.x, state.z), state.z);
     player.root.rotation.y = facing;
     state.yaw = cam.yaw;
   }
 
   const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3();
+  const baseFov = () => fovFor(camera.aspect);
+  let moveAmount = 0, runAmount = 0;
   function updateCamera(dt) {
+    // field of view opens up as you speed up, and closes again when you stop
+    const targetFov = baseFov() + runAmount * 9 + moveAmount * 2 + (cam.first ? 8 : 0);
+    if (Math.abs(camera.fov - targetFov) > 0.01) { camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
+    // ease round behind the player while walking forwards (unless the player is steering the camera)
+    if (moveAmount > 0.2 && look.id === null && !cam.first && dlg.hidden) {
+      const behind = facing + Math.PI;
+      const diff = Math.atan2(Math.sin(behind - cam.yaw), Math.cos(behind - cam.yaw));
+      if (Math.abs(diff) < 2.2) cam.yaw += diff * Math.min(1, dt * 0.9 * moveAmount);
+    }
+    player.root.visible = !cam.first;
+    if (cam.first) {
+      const eye = player.root.position.y + 1.6, look = (cam.pitch - 0.32) * 1.6;
+      camera.position.set(state.x, eye + Math.sin(stepPhase * 2) * 0.03 * moveAmount, state.z);
+      camTarget.set(state.x - Math.sin(cam.yaw) * Math.cos(look), eye - Math.sin(look), state.z - Math.cos(cam.yaw) * Math.cos(look));
+      camera.lookAt(camTarget);
+      sun.target.position.set(state.x, 0, state.z);
+      sun.position.copy(sun.target.position).addScaledVector(sunDir, 120);
+      return;
+    }
     camTarget.set(state.x, player.root.position.y + 1.5, state.z);
     const cp = Math.cos(cam.pitch);
     camPos.set(state.x + Math.sin(cam.yaw) * cp * cam.dist, camTarget.y + Math.sin(cam.pitch) * cam.dist, state.z + Math.cos(cam.yaw) * cp * cam.dist);
@@ -614,6 +710,8 @@ function start(assets) {
   }
 
   function updateNpcs(dt, t) {
+    const searching = isActive('keeper');
+    for (const { a, o } of lostLabels) o.visible = searching && !L.view.inside && a.lost && a.state !== 'follow' && Math.hypot(a.x - state.x, a.z - state.z) < 80;
     for (const n of npcs) {
       const d = Math.hypot(n.def.x - state.x, n.def.z - state.z);
       const want = d < 6 ? Math.atan2(state.x - n.def.x, state.z - n.def.z) : n.def.facing;
@@ -686,7 +784,7 @@ function start(assets) {
       setInside(inside);
       if (inside) { state.x = IN.x; state.z = IN.z + 2.6; facing = Math.PI; cam.yaw = 0; }
       else {
-        [state.x, state.z] = L.houseToWorld(0, -7.5);
+        [state.x, state.z] = L.houseToWorld(0, -10);
         const [dx, dz] = L.houseToWorld(0, -1);
         facing = Math.atan2(dx, dz); cam.yaw = facing + Math.PI;
       }
@@ -745,7 +843,7 @@ function start(assets) {
     updatePorter(dt);
     updateNpcs(dt, t);
     for (const a of ambient) a.char.update(dt);
-    if (!L.view.inside) animals.update(dt, t, state);
+    if (!L.view.inside) animals.update(dt, t, { x: state.x, z: state.z, heading: facing });
     updateQuests(dt, realDt);
     updateDoors();
     updateCamera(dt);
@@ -778,7 +876,7 @@ function start(assets) {
     ]);
   }
 
-  window.__game = { state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor }; // handy for debugging in the console
+  window.__game = { state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
 }
 
 // ---------- item models ----------

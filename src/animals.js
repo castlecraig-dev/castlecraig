@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as L from './layout.js';
-import { PADDOCK } from './quests.js';
+import { PADDOCK, LOST_ALPACAS } from './quests.js';
 
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, ...extra });
 const g = {
@@ -123,6 +123,15 @@ export function buildAnimals(scene, { quality }) {
     group.add(a.root);
     alpacas.push({ ...a, x, z, heading: R() * 6.28, state: 'graze', timer: 2 + R() * 5, tx: x, tz: z, phase: R() * 6, neckTilt: 0.25, happy: 0 });
   }
+  // the three that escaped (for the Alpaca Keeper's quest)
+  const lost = LOST_ALPACAS.map(([x, z], i) => {
+    const a = makeAlpaca(['#d9b38c', '#fbf7ee', '#8a6a4a'][i], 20 + i);
+    group.add(a.root);
+    const o = { ...a, x, z, homeX: x, homeZ: z, heading: R() * 6.28, state: 'lost', timer: R() * 4, tx: x, tz: z, phase: R() * 6, neckTilt: 0.25, happy: 0, lost: true };
+    alpacas.push(o);
+    return o;
+  });
+  const inPaddock = (a) => a.x > P.minX + 1 && a.x < P.maxX - 1 && a.z > P.minZ + 1 && a.z < P.maxZ - 1;
 
   // rabbits
   const rabbits = [];
@@ -170,6 +179,33 @@ export function buildAnimals(scene, { quality }) {
       a.timer -= dt;
       const dp = Math.hypot(px - a.x, pz - a.z);
       let moving = false;
+      if (a.state === 'follow') {
+        // trot along behind the player, single file
+        const idx = lost.filter((o) => o.state === 'follow').indexOf(a);
+        const back = 2.6 + idx * 2.2, fx = px - Math.sin(player.heading ?? 0) * back, fz = pz - Math.cos(player.heading ?? 0) * back;
+        const dx = fx - a.x, dz = fz - a.z, d = Math.hypot(dx, dz);
+        if (d > 30 && !L.blocked(fx, fz, 0.5)) { a.x = fx; a.z = fz; } // fell far behind: catch up
+        else if (d > 0.6) {
+          a.heading = turn(a.heading, Math.atan2(dx, dz), dt * 4);
+          const step = Math.min(d, Math.min(9.5, 1 + d * 1.6) * dt), nx = a.x + Math.sin(a.heading) * step, nz = a.z + Math.cos(a.heading) * step;
+          if (!L.blocked(nx, nz, 0.5) || inPaddock({ x: nx, z: nz })) { a.x = nx; a.z = nz; a.stuck = 0; }
+          else if ((a.stuck = (a.stuck || 0) + dt) > 1.5 && !L.blocked(fx, fz, 0.5)) { a.x = fx; a.z = fz; a.stuck = 0; } // caught on a fence: catch up
+          moving = true;
+        }
+        if (inPaddock(a)) { a.state = 'graze'; a.lost = false; a.home = true; a.timer = 2; a.happy = 1.2; }
+      } else if (a.state === 'lost' && a.timer < 0) {
+        a.state = 'wander';
+        a.tx = a.homeX + (R() - 0.5) * 14; a.tz = a.homeZ + (R() - 0.5) * 14;
+      }
+      if (a.state === 'wander') {
+        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
+        if (d < 0.4) { a.state = 'lost'; a.timer = 3 + R() * 6; }
+        else {
+          a.heading = turn(a.heading, Math.atan2(dx, dz), dt * 1.5);
+          const nx = a.x + Math.sin(a.heading) * 0.8 * dt, nz = a.z + Math.cos(a.heading) * 0.8 * dt;
+          if (!L.blocked(nx, nz, 0.5)) { a.x = nx; a.z = nz; moving = true; } else { a.state = 'lost'; a.timer = 1; }
+        }
+      }
       if (a.state === 'graze' && a.timer < 0) {
         a.state = 'walk';
         a.tx = THREE.MathUtils.clamp(a.x + (R() - 0.5) * 24, P.minX + 3, P.maxX - 3);
@@ -189,13 +225,15 @@ export function buildAnimals(scene, { quality }) {
       if (dp < 1.6) { // don't let the player walk through them
         a.x += ((a.x - px) / dp) * (1.6 - dp); a.z += ((a.z - pz) / dp) * (1.6 - dp);
       }
-      a.x = THREE.MathUtils.clamp(a.x, P.minX + 1, P.maxX - 1);
-      a.z = THREE.MathUtils.clamp(a.z, P.minZ + 1, P.maxZ - 1);
-      const curious = dp < 9 && a.state !== 'walk';
+      if (!a.lost && a.state !== 'follow') {
+        a.x = THREE.MathUtils.clamp(a.x, P.minX + 1, P.maxX - 1);
+        a.z = THREE.MathUtils.clamp(a.z, P.minZ + 1, P.maxZ - 1);
+      }
+      const curious = dp < 9 && (a.state === 'graze' || a.state === 'lost');
       if (curious) a.heading = turn(a.heading, Math.atan2(px - a.x, pz - a.z), dt * 1.2);
       a.phase += dt * (moving ? 6 : 0);
       a.legs.forEach((leg, i) => { leg.rotation.x = moving ? Math.sin(a.phase + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.4 : leg.rotation.x * 0.9; });
-      const grazing = a.state === 'graze' && !curious && a.timer > 1;
+      const grazing = (a.state === 'graze' || a.state === 'lost') && !curious && a.timer > 1;
       a.neckTilt += ((grazing ? 1.7 : 0.15 + Math.sin(t * 0.7 + a.phase) * 0.06) - a.neckTilt) * Math.min(1, dt * 2);
       a.neck.rotation.x = a.neckTilt;
       a.head.rotation.x = grazing ? 0.3 : -0.1;
@@ -287,16 +325,26 @@ export function buildAnimals(scene, { quality }) {
     }
   }
 
-  // Pat an alpaca if one is close enough.
-  function interact(x, z) {
+  // Pat an alpaca if one is close enough. A lost one starts following you if you're looking for them.
+  function interact(x, z, searching = false) {
     let best = null, bd = 2.6;
     for (const a of alpacas) { const d = Math.hypot(a.x - x, a.z - z); if (d < bd) { bd = d; best = a; } }
     if (!best) return null;
     best.happy = 1.2;
-    best.state = 'graze'; best.timer = 4;
+    if (best.lost && searching) {
+      if (best.state === 'follow') return 'This alpaca is already following you.';
+      best.state = 'follow';
+      return 'The alpaca hums and starts following you!';
+    }
+    if (best.state !== 'follow') { best.state = best.lost ? 'lost' : 'graze'; best.timer = 4; }
     return ['The alpaca hums happily.', 'The alpaca nuzzles your hand.', 'Soft! The alpaca leans in for more.'][Math.floor(Math.random() * 3)];
+  }
+  const herdStatus = () => ({ home: lost.filter((a) => a.home).length, following: lost.filter((a) => a.state === 'follow').length });
+  // Put alpacas already brought home (from a saved game) back in the paddock.
+  function restoreHome(n) {
+    lost.slice(0, n).forEach((a, i) => { a.lost = false; a.home = true; a.state = 'graze'; a.x = -10 + i * 8; a.z = -150; });
   }
   const nearAlpaca = (x, z) => alpacas.some((a) => Math.hypot(a.x - x, a.z - z) < 2.6);
 
-  return { group, update, interact, nearAlpaca, alpacas, rabbits };
+  return { group, update, interact, nearAlpaca, alpacas, rabbits, lost, herdStatus, restoreHome };
 }

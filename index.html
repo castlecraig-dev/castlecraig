@@ -14,6 +14,9 @@
     <h1>Castle Craig Quest</h1>
     <h2>Quests</h2>
     <ul id="quest-log"></ul>
+    <h2>Rewards</h2>
+    <p id="points" class="points"></p>
+    <ul id="badges"></ul>
     <h2>Carrying</h2>
     <ul id="inventory"></ul>
     <button id="reset" type="button">Restart game</button>
@@ -23,7 +26,9 @@
   <div id="timer" hidden></div>
   <div id="prompt" hidden></div>
   <div id="toast" hidden></div>
-  <p id="help">WASD move · Shift run · drag to look · scroll to zoom · E talk</p>
+  <p id="help">WASD move · Shift run · drag to look · scroll to zoom · E talk · V first person</p>
+  <button id="view" type="button" title="Switch view (V)">👁</button>
+  <div id="reward" hidden></div>
   <p id="attribution">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>
 
   <div id="dialogue" hidden role="dialog" aria-live="polite">

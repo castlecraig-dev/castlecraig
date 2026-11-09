@@ -329,7 +329,7 @@ export function buildInterior(scene, { assets }) {
   };
   rug(TX.persianRug(4), 4.4, 3.2, 0, -2.1);
   rug(TX.persianRug(9), 3.6, 2.4, -4.4, 2.6);
-  rug(TX.persianRug(15), 1.4, 3.6, -4.9, -7.5);
+  rug(TX.persianRug(15), 1.4, 3.0, -4.6, -7.4);
   rug(TX.tartanRug(), 5.2, 4.2, (Q.minX + Q.maxX) / 2, -0.4);
 
   // ---------- staircase ----------
@@ -411,7 +411,7 @@ export function buildInterior(scene, { assets }) {
     picture(5, -4.4, 1.7, H.maxZ - 0.03, Math.PI);
     picture(8, -13.7 - 3.6, 2.8, Q.minZ + 0.03, 0);
     picture(11, -13.7 + 3.6, 2.8, Q.minZ + 0.03, 0);
-    picture(14, -2.03, 3.6, -8.6, -Math.PI / 2);
+    picture(14, -2.03, 3.6, -7.2, -Math.PI / 2);
 
     // Quiet Room: leather armchairs on the tartan rug, a sofa, books and a table by the window
     const qc = [(Q.minX + Q.maxX) / 2, -0.4];
@@ -428,7 +428,7 @@ export function buildInterior(scene, { assets }) {
     put(group, sideTable, -9.6, 0, 3.4); put(group, plant, -9.6, 0.6, 3.4); L.addInCircle(-9.6, 3.4, 0.35);
 
     // stair hall: a grandfather clock
-    put(group, clock, S.maxX - 0.3, 0, -8.2, -Math.PI / 2); L.addInBox(S.maxX - 0.3, -8.2, 0.5, 0.7);
+    put(group, clock, S.maxX - 0.3, 0, -8.4, -Math.PI / 2); L.addInBox(S.maxX - 0.3, -8.4, 0.5, 0.7);
   }
 
   // ---------- lights: brass lanterns, iron chandeliers, daylight from the windows ----------
@@ -455,7 +455,7 @@ export function buildInterior(scene, { assets }) {
     hang(lantern, 0, -2.5, 2.9, 1.05, HALL_H - 0.02, true);
     hang(lantern, -bw, 2.5, 2.9, 1.05, HALL_H - 0.02, true);
     hang(lantern, bw, 2.5, 2.9, 1.05, HALL_H - 0.02, false);
-    hang(lantern, -4.5, -8.2, 3.6, 1.05, 6, true);
+    hang(lantern, -4.5, -7.6, 3.6, 1.05, 6, true);
     hang(chandelier, -16.5, -0.4, 3.0, 0.85, 4.2, false);
     hang(chandelier, -10.9, -0.4, 3.0, 0.85, 4.2, false);
     const ql = new THREE.PointLight('#ffd08a', 9, 12, 1.4);

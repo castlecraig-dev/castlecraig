@@ -81,6 +81,30 @@ html, body {
 #attribution { position: fixed; right: 10px; bottom: 6px; margin: 0; font-size: 11px; color: rgba(255, 255, 255, .7); text-shadow: 0 1px 2px #000; }
 #attribution a { color: inherit; }
 
+#hud .points { margin: 2px 0 4px; color: var(--accent); font-weight: bold; }
+#view {
+  position: fixed; left: 12px; top: 172px; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); font-size: 18px; cursor: pointer;
+}
+#reward {
+  position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 16px 28px; background: var(--panel); border: 2px solid var(--accent); border-radius: 16px;
+  color: var(--text); pointer-events: none; z-index: 4;
+}
+#reward[hidden] { display: none; }
+#reward .badge-icon { font-size: 40px; color: var(--accent); line-height: 1; }
+#reward b { font-size: 22px; color: var(--accent); }
+#reward em { font-size: 14px; color: var(--done); }
+#reward.show { animation: pop 4.2s ease forwards; }
+@keyframes pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  16% { transform: translate(-50%, -50%) scale(1); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+}
+
 #dialogue {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   width: min(660px, calc(100vw - 32px)); padding: 14px 18px;
@@ -121,6 +145,8 @@ kbd { border: 1px solid var(--muted); border-radius: 3px; padding: 0 4px; font-s
   #hud h1, #reset { display: none; }
   #hud h2 { margin: 2px 0; font-size: 10px; }
   #minimap { top: 8px; left: 8px; width: 120px; height: 100px; }
+  #view { top: 116px; left: 8px; }
+  #attribution { right: auto; left: 50%; bottom: 3px; transform: translateX(-50%); font-size: 9px; white-space: nowrap; }
   #help { display: none; }
   #timer { top: auto; bottom: 120px; }
   #toast { top: auto; bottom: 170px; }

@@ -156,6 +156,9 @@ export function losBlocked(x0, z0, x1, z1) {
 
 // ---------- the castle interior ----------
 // The interior is built well away from the grounds so the two never overlap.
+// It is laid out to fit the real house: the Front Hall sits behind the front door in the
+// centre block, the stair hall behind it on the garden front, and the Quiet Room in the
+// east wing. (Interior local +z points out of the front door; x is mirrored from the house frame.)
 // Walking through the castle's front door moves the player there.
 export const INTERIOR = { x: 6000, z: 6000 };
 export const view = { inside: false };
@@ -164,7 +167,7 @@ export const view = { inside: false };
 export const ROOMS = {
   hall: { minX: -7, maxX: 7, minZ: -5, maxZ: 5, ceil: 5.6 },
   quiet: { minX: -20, maxX: -7.4, minZ: -5, maxZ: 4, ceil: 4.2 },
-  stairs: { minX: -7, maxX: -2, minZ: -11, maxZ: -5.4, ceil: 6 },
+  stairs: { minX: -7, maxX: -2, minZ: -9.6, maxZ: -5.4, ceil: 6 },
 };
 export const DOORWAYS = {
   quiet: { minX: -7.6, maxX: -6.8, minZ: 1.4, maxZ: 3.6, ceil: 2.8 },
@@ -173,7 +176,7 @@ export const DOORWAYS = {
 };
 const WALKABLE = [...Object.values(ROOMS), ...Object.values(DOORWAYS)];
 const CAMERA_SPACE = [...Object.values(ROOMS), DOORWAYS.quiet, DOORWAYS.stairs]; // not the front door gap
-export const STAIRS = { minX: -6.8, maxX: -5.25, bottomZ: -5.8, topZ: -10.2, rise: 2.6 };
+export const STAIRS = { minX: -6.8, maxX: -5.25, bottomZ: -5.8, topZ: -8.9, rise: 2.6 };
 
 export const inColliders = { boxes: [], circles: [] };
 export const addInBox = (x, z, w, d) => inColliders.boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });

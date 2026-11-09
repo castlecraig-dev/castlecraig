@@ -10,7 +10,7 @@ paddock north of the house, rabbits hop about the meadows and birds wheel over t
 Built with [Three.js](https://threejs.org) and [Vite](https://vite.dev), using free CC0 assets from
 [Poly Haven](https://polyhaven.com) and [KayKit](https://kaylousberg.com) (see [CREDITS.md](CREDITS.md)).
 
-![The castle](screenshots/01-castle.png)
+![The house](screenshots/01-castle.png)
 
 ## Play locally
 
@@ -31,7 +31,8 @@ Then open the address Vite prints (usually http://localhost:5173).
 | Move | WASD or arrow keys | Drag on the left half of the screen |
 | Run | Hold Shift | Push the stick all the way out |
 | Look around | Drag with the mouse, scroll to zoom | Drag on the right half of the screen |
-| Talk / continue | E, Space or Enter | **Talk** button |
+| Talk / continue / pat an alpaca | E, Space or Enter | **Talk** button |
+| First-person view | V, or scroll all the way in | 👁 button |
 
 Progress saves automatically in the browser. Use **Restart game** in the quest panel to start again.
 
@@ -44,9 +45,14 @@ Progress saves automatically in the browser. Use **Restart game** in the quest p
 | Dining hall dash | The Cook (back of the house) | Run to the dining hall in the Recovery Gardens and back to the front door in 90 seconds. |
 | Sneak a vape into the house | The Resident (walled garden) | Collect the vape just north of the walled garden and reach the front door without the Night Porter seeing you. If you're spotted, the vape goes back to its hiding place. |
 | Find the pack of cigarettes | A Shelter Regular (smoking shelter) | Find the pack dropped near the Old Watermill and bring it back to the shelter. |
+| Find the 3 lost alpacas | The Alpaca Keeper (paddock gate) | Three alpacas have wandered off across the estate. Pat each one so it follows you, then lead them back into the paddock. |
+
+Every quest gives recovery points and a badge, shown in the quest panel. The dining hall dash also earns new
+running shoes (15% faster running), and finishing everything earns the Castle Craig Graduate badge.
 
 Walk through the house's front door to go inside. The interior has the Front Hall, the Quiet Room and the
-staircase, modelled on photos of the real rooms. Walk back out through the front door to return to the grounds.
+staircase, modelled on photos of the real rooms and arranged to fit the real building's footprint (the real
+floor plans aren't public, so room positions are a best fit). Walk back out through the front door to return to the grounds.
 
 Items for active quests have a golden beam of light above them and appear as orange dots on the minimap.
 
@@ -94,6 +100,8 @@ x −300 to 330 and z −330 to 560.
 
 | | |
 | --- | --- |
-| ![Grounds](screenshots/02-grounds.png) | ![Pond and dining hall](screenshots/03-pond-and-dining-hall.png) |
-| ![Walled garden](screenshots/04-walled-garden.png) | ![Bridge and woods](screenshots/05-bridge-and-woods.png) |
-| ![Talking to the Nurse](screenshots/06-talking-to-the-nurse.png) | ![Sneaking past the Night Porter](screenshots/07-sneaking-past-the-night-porter.png) |
+| ![The house](screenshots/01-castle.png) | ![The grounds](screenshots/02-grounds.png) |
+| ![Alpacas](screenshots/03-alpacas.png) | ![Walled garden](screenshots/04-walled-garden.png) |
+| ![Smoking shelter](screenshots/05-smoking-shelter.png) | ![Woods](screenshots/06-woods.png) |
+| ![Lake](screenshots/07-lake.png) | ![Front Hall](screenshots/08-front-hall.png) |
+| ![Quiet Room](screenshots/09-quiet-room.png) | ![On a phone](screenshots/10-mobile.png) |

@@ -35,6 +35,7 @@ export const NPCS = [
     id: 'groundskeeper', name: 'The Groundskeeper', model: 'groundskeeper', x: -6, z: -48, facing: Math.PI,
     quest: {
       type: 'fetch', title: 'Find the empty vodka bottle', items: ['vodka'],
+      reward: { points: 100, badge: 'Clean Grounds' },
       intro: "Someone's stashed an empty vodka bottle out in the woods south-west of the clinic gardens, past the farm track. Find it and bring it back so it can go in the bin.",
       waiting: 'No sign of the bottle yet? Try the woods south-west of the clinic gardens.',
       done: "That's it. Into the recycling it goes. Thanks for keeping the place clear.",
@@ -44,6 +45,7 @@ export const NPCS = [
     id: 'nurse', name: 'The Nurse', model: 'guide', tint: '#9cc3ff', x: 28, z: 446, facing: 0,
     quest: {
       type: 'fetch', title: 'Find the bag of drugs', items: ['drugs'],
+      reward: { points: 150, badge: 'Honesty' },
       intro: "We've had word that a bag of drugs has been hidden down here by the lake. Please find it and bring it straight to me.",
       waiting: "The bag is somewhere around the lake's edge. Have a look by the reeds on the east side.",
       done: "Thank you for bringing it in. That took courage. It'll be disposed of safely.",
@@ -53,6 +55,7 @@ export const NPCS = [
     id: 'cook', name: 'The Cook', model: 'cook', x: cookX, z: cookZ, facing: 0,
     quest: {
       type: 'timed', title: 'Dining hall dash', timeLimit: 90,
+      reward: { points: 120, badge: 'Quick Feet', perk: 'shoes', perkText: 'New running shoes: you now run 15% faster.' },
       checkpoints: [DINING, CASTLE_DOOR],
       intro: "Supper bell's about to go! Run down to the dining hall in the Recovery Gardens and back to the front door of the house in 90 seconds. Hold Shift to run. Ready? Go!",
       retry: 'Want another go at the dining hall dash? Off you go, the clock is running!',
@@ -64,6 +67,7 @@ export const NPCS = [
     id: 'resident', name: 'The Resident', model: 'gardener', x: 100, z: 228, facing: 0,
     quest: {
       type: 'sneak', title: 'Sneak a vape into the house', item: 'vape', target: CASTLE_DOOR,
+      reward: { points: 120, badge: 'Ghost' },
       intro: "Psst. I hid a vape just outside the north wall of this garden. Can you get it to the front door of the house without the Night Porter seeing you? Stay out of their line of sight.",
       waiting: "The vape is just north of the walled garden. Keep out of the Night Porter's view on the way to the front door.",
       caught: 'Spotted! The Night Porter confiscated the vape and put it back where it was found.',
@@ -74,12 +78,29 @@ export const NPCS = [
     id: 'smokers', name: 'A Shelter Regular', model: 'groundskeeper', tint: '#d6b08a', x: regX, z: regZ, facing: SHELTER.ry,
     quest: {
       type: 'fetch', title: 'Find the pack of cigarettes', items: ['cigarettes'],
+      reward: { points: 100, badge: 'Good Neighbour' },
       intro: "Somebody dropped our pack of cigarettes on the walk back from the Old Watermill, down past the clinic gardens. Could you find it and bring it to the shelter? We'll share them round.",
       waiting: "Still no cigarettes? They'll be somewhere near the Old Watermill.",
       done: "Legend! The whole shelter thanks you. Pull up a bench any time.",
     },
   },
+  {
+    id: 'keeper', name: 'The Alpaca Keeper', model: 'gardener', tint: '#e8d0a8', x: 4, z: -135, facing: Math.PI,
+    quest: {
+      type: 'herd', title: 'Find the 3 lost alpacas', count: 3,
+      reward: { points: 150, badge: 'Alpaca Whisperer' },
+      intro: "Somebody left the paddock gate open and three of my alpacas have wandered off! One went west across the meadow, one north-east towards the fields and one down past the clinic gardens to the south-west. Give each one a pat and it'll follow you. Bring them back through the gate.",
+      waiting: 'Still missing some alpacas. Pat them and lead them back into the paddock.',
+      done: "All three home safe! They'll be humming about you for weeks.",
+    },
+  },
 ];
+
+// Where the three escaped alpacas are wandering.
+export const LOST_ALPACAS = [[-160, -100], [200, -150], [-60, 250]];
+
+// Bonus for finishing everything.
+export const FINAL_REWARD = { points: 250, badge: 'Castle Craig Graduate' };
 
 // Residents who hang about the smoking shelter (no quest, just a chat).
 export const AMBIENT = [
@@ -109,7 +130,7 @@ export const PLACES = [
   { name: 'Walled Garden', x: 100, z: 225, h: 6 },
   { name: 'Dining Hall', x: 45, z: 299, h: 10 },
   { name: 'Smoking Shelter', x: SHELTER.x, z: SHELTER.z, h: 4.5 },
-  { name: 'Alpaca Paddock', x: 0, z: -170, h: 4 },
+  { name: 'Alpaca Paddock', x: 0, z: -175, h: 4 },
   { name: 'Lake', x: 30, z: 492, h: 4 },
   { name: 'Old Watermill', x: 94, z: 383, h: 9 },
   { name: 'Hopeburn House', x: -116, z: 12, h: 10 },
