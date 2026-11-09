@@ -8,6 +8,7 @@ import './style.css';
 import * as L from './layout.js';
 import { loadAssets, analyseSky } from './assets.js';
 import { buildWorld } from './world.js';
+import { buildInterior } from './interior.js';
 import { Character, turnTowards } from './characters.js';
 import { ITEMS, NPCS, PATROL, PLACES, CASTLE_DOOR } from './quests.js';
 import { glowTexture } from './textures.js';
@@ -55,7 +56,7 @@ addEventListener('resize', () => {
 
 // ---------- state ----------
 const SAVE_KEY = 'castle-craig-quest-3d-v2';
-const fresh = () => ({ x: 0, z: 4, yaw: 0, picked: [], bag: [], quests: {}, finished: false });
+const fresh = () => ({ x: 0, z: 4, yaw: 0, picked: [], bag: [], quests: {}, finished: false, inside: false });
 let state = fresh();
 try {
   const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
@@ -85,6 +86,7 @@ function start(assets) {
   scene.environment = sky;
   scene.environmentIntensity = 0.85;
   scene.fog = new THREE.Fog(horizon.clone().multiplyScalar(0.9), 90, 300);
+  const fog = scene.fog;
 
   const sun = new THREE.DirectionalLight('#fff1dc', 2.6);
   sun.castShadow = true;
@@ -95,7 +97,12 @@ function start(assets) {
   sun.shadow.normalBias = 0.04;
   scene.add(sun, sun.target);
 
-  const world = buildWorld(scene, { quality, assets });
+  // Everything on the grounds lives in `outside`, so it can be hidden while indoors.
+  const outside = new THREE.Group();
+  scene.add(outside);
+  const world = buildWorld(outside, { quality, assets });
+  const interior = buildInterior(scene, { assets });
+  const outdoorLabels = [];
 
   // ----- characters -----
   const player = new Character(assets.chars.player, { height: 1.75 });
@@ -106,7 +113,7 @@ function start(assets) {
     const c = new Character(assets.chars[n.model], { height: 1.8, tint: n.tint || null });
     c.root.position.set(n.x, L.standHeight(n.x, n.z), n.z);
     c.root.rotation.y = n.facing;
-    scene.add(c.root);
+    outside.add(c.root);
     L.addCircle(n.x, n.z, 0.5);
     const tag = document.createElement('div');
     tag.className = 'npc-tag';
@@ -114,16 +121,17 @@ function start(assets) {
     const label = new CSS2DObject(tag);
     label.position.set(0, 2.35, 0);
     c.root.add(label);
+    outdoorLabels.push(label);
     return { def: n, char: c, tag };
   });
 
   // The Night Porter on patrol
   const porter = new Character(assets.chars[PATROL.model], { height: 1.8, clone: true, tint: '#8c96c8' });
-  scene.add(porter.root);
+  outside.add(porter.root);
   const porterTag = document.createElement('div');
   porterTag.className = 'npc-tag porter';
   porterTag.innerHTML = `<span class="name">${PATROL.name}</span>`;
-  const pl = new CSS2DObject(porterTag); pl.position.set(0, 2.35, 0); porter.root.add(pl);
+  const pl = new CSS2DObject(porterTag); pl.position.set(0, 2.35, 0); porter.root.add(pl); outdoorLabels.push(pl);
   const patrol = { i: 0, x: PATROL.route[0][0], z: PATROL.route[0][1], wait: 0, heading: 0, exposure: 0 };
   // vision cone on the ground
   const coneGeo = new THREE.CircleGeometry(PATROL.viewRange, 32, Math.PI / 2 - PATROL.viewAngle / 2, PATROL.viewAngle);
@@ -144,7 +152,8 @@ function start(assets) {
     d.textContent = p.name;
     const o = new CSS2DObject(d);
     o.position.set(p.x, p.y, p.z);
-    scene.add(o);
+    outside.add(o);
+    outdoorLabels.push(o);
     p.el = d;
   }
 
@@ -162,7 +171,7 @@ function start(assets) {
     beam.position.y = 20;
     g.add(beam);
     g.position.set(it.x, L.groundHeight(it.x, it.z) + 0.9, it.z);
-    scene.add(g);
+    outside.add(g);
     itemObjs[id] = { group: g, beam, base: g.position.y };
   }
 
@@ -171,7 +180,7 @@ function start(assets) {
     new THREE.MeshStandardMaterial({ color: '#ffcc55', emissive: '#ffaa22', emissiveIntensity: 2.5 }));
   ring.rotation.x = Math.PI / 2;
   ring.visible = false;
-  scene.add(ring);
+  outside.add(ring);
 
   // ---------- input ----------
   const keys = new Set();
@@ -219,7 +228,7 @@ function start(assets) {
   };
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('wheel', (e) => { cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.01, 3.5, 16); }, { passive: true });
+  canvas.addEventListener('wheel', (e) => { cam.dist = THREE.MathUtils.clamp(cam.dist + e.deltaY * 0.01, 3.5, L.view.inside ? 6 : 16); }, { passive: true });
   function showJoystick(x, y, dx, dy) {
     const j = $('joystick');
     j.hidden = false;
@@ -503,6 +512,7 @@ function start(assets) {
     const w = mini.width, h = mini.height;
     const sx = w / MW, sz = h / MH;
     const mx = (x) => (x - L.BOUNDS.minX) * sx, mz = (z) => (z - L.BOUNDS.minZ) * sz;
+    if (L.view.inside) { drawInteriorMap(); return; }
     mctx.drawImage(mapBg, 0, 0, w, h);
     const dot = (x, z, r, color) => { mctx.fillStyle = color; mctx.beginPath(); mctx.arc(mx(x), mz(z), r, 0, Math.PI * 2); mctx.fill(); };
     for (const n of npcs) {
@@ -621,6 +631,70 @@ function start(assets) {
     $('action').classList.toggle('ready', !!n || !dlg.hidden);
   }
 
+  // ---------- going in and out of the castle ----------
+  const IN = L.INTERIOR;
+  const ROOM_NAMES = { hall: 'Front Hall', quiet: 'Quiet Room', stairs: 'Staircase' };
+  let transitioning = false, currentRoom = null;
+  function setInside(inside) {
+    L.view.inside = inside;
+    state.inside = inside;
+    outside.visible = !inside;
+    interior.group.visible = inside;
+    for (const l of outdoorLabels) l.visible = !inside;
+    sun.intensity = inside ? 0 : 2.6;
+    sun.castShadow = !inside;
+    scene.environmentIntensity = inside ? 0.3 : 0.85;
+    scene.fog = inside ? null : fog;
+    if (inside) cam.dist = Math.min(cam.dist, 4.5);
+    currentRoom = null;
+  }
+  function moveThroughDoor(inside) {
+    transitioning = true;
+    $('fade').classList.add('on');
+    setTimeout(() => {
+      setInside(inside);
+      if (inside) { state.x = IN.x; state.z = IN.z + 2.6; facing = Math.PI; cam.yaw = 0; }
+      else { state.x = 0; state.z = -10.6; facing = 0; cam.yaw = Math.PI; }
+      updatePlayer(0); updateCamera(1); camera.position.copy(camPos);
+      $('fade').classList.remove('on');
+      save();
+      setTimeout(() => { transitioning = false; }, 400);
+    }, 350);
+  }
+  function updateDoors() {
+    if (transitioning || !dlg.hidden) return;
+    if (!L.view.inside && Math.abs(state.x) < 1.3 && state.z < -12.45 && state.z > -14) moveThroughDoor(true);
+    else if (L.view.inside && state.z - IN.z > 5.35) moveThroughDoor(false);
+    if (L.view.inside) {
+      const lx = state.x - IN.x, lz = state.z - IN.z;
+      const room = Object.keys(L.ROOMS).find((k) => { const r = L.ROOMS[k]; return lx >= r.minX && lx <= r.maxX && lz >= r.minZ && lz <= r.maxZ; });
+      if (room && room !== currentRoom) { currentRoom = room; toast(ROOM_NAMES[room]); }
+    }
+  }
+  if (state.inside) setInside(true);
+
+  // floor plan for the minimap while indoors
+  function drawInteriorMap() {
+    const w = mini.width, h = mini.height, ext = { minX: -21, maxX: 8, minZ: -12, maxZ: 6.5 };
+    const k = Math.min(w / (ext.maxX - ext.minX), h / (ext.maxZ - ext.minZ));
+    const ox = (w - (ext.maxX - ext.minX) * k) / 2, oz = (h - (ext.maxZ - ext.minZ) * k) / 2;
+    const mx = (x) => ox + (x - ext.minX) * k, mz = (z) => oz + (z - ext.minZ) * k;
+    mctx.fillStyle = '#2a2420'; mctx.fillRect(0, 0, w, h);
+    mctx.fillStyle = '#d9c9a3';
+    for (const r of [...Object.values(L.ROOMS), ...Object.values(L.DOORWAYS)]) mctx.fillRect(mx(r.minX), mz(r.minZ), (r.maxX - r.minX) * k, (r.maxZ - r.minZ) * k);
+    mctx.fillStyle = '#7a5a3a'; mctx.font = '9px Georgia';
+    for (const [key, name] of Object.entries(ROOM_NAMES)) {
+      const r = L.ROOMS[key];
+      mctx.fillText(name, mx(r.minX) + 3, mz(r.minZ) + 10);
+    }
+    mctx.save();
+    mctx.translate(mx(state.x - IN.x), mz(state.z - IN.z));
+    mctx.rotate(-facing + Math.PI);
+    mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000';
+    mctx.beginPath(); mctx.moveTo(0, -6); mctx.lineTo(4.5, 5); mctx.lineTo(-4.5, 5); mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.restore();
+  }
+
   // ---------- loop ----------
   const frameTimer = new THREE.Timer();
   let saveTimer = 0;
@@ -635,9 +709,11 @@ function start(assets) {
     updatePorter(dt);
     updateNpcs(dt, t);
     updateQuests(dt, realDt);
+    updateDoors();
     updateCamera(dt);
     updatePrompt();
     world.update(t);
+    interior.update(t);
     ring.rotation.z = t;
     composer.render();
     labels.render(scene, camera);
@@ -664,7 +740,7 @@ function start(assets) {
     ]);
   }
 
-  window.__game = { state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud }; // handy for debugging in the console
+  window.__game = { state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor }; // handy for debugging in the console
 }
 
 // ---------- item models ----------

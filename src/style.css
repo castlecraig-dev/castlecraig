@@ -100,6 +100,9 @@ kbd { border: 1px solid var(--muted); border-radius: 3px; padding: 0 4px; font-s
 }
 #action { display: none; }
 
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .35s; z-index: 5; }
+#fade.on { opacity: 1; }
+
 #loading {
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: radial-gradient(ellipse at center, #2a4030, #121a15); transition: opacity .8s; z-index: 10;

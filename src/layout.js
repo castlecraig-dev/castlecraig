@@ -89,8 +89,60 @@ export function groundHeight(x, z) {
   return h;
 }
 
+// ---------- the castle interior ----------
+// The interior is built well away from the grounds so the two never overlap.
+// Walking through the castle's front door moves the player there.
+export const INTERIOR = { x: 0, z: -400 };
+export const view = { inside: false };
+
+// Walkable floor areas in interior-local metres. ceil is the ceiling height.
+export const ROOMS = {
+  hall: { minX: -7, maxX: 7, minZ: -5, maxZ: 5, ceil: 5.6 },
+  quiet: { minX: -20, maxX: -7.4, minZ: -5, maxZ: 4, ceil: 4.2 },
+  stairs: { minX: -7, maxX: -2, minZ: -11, maxZ: -5.4, ceil: 6 },
+};
+export const DOORWAYS = {
+  quiet: { minX: -7.6, maxX: -6.8, minZ: 1.4, maxZ: 3.6, ceil: 2.8 },
+  stairs: { minX: -6.2, maxX: -3.6, minZ: -5.6, maxZ: -4.8, ceil: 3.2 },
+  front: { minX: -1.1, maxX: 1.1, minZ: 4.9, maxZ: 5.9, ceil: 3 }, // leads back outside
+};
+const WALKABLE = [...Object.values(ROOMS), ...Object.values(DOORWAYS)];
+const CAMERA_SPACE = [...Object.values(ROOMS), DOORWAYS.quiet, DOORWAYS.stairs]; // not the front door gap
+export const STAIRS = { minX: -6.8, maxX: -5.25, bottomZ: -5.8, topZ: -10.2, rise: 2.6 };
+
+export const inColliders = { boxes: [], circles: [] };
+export const addInBox = (x, z, w, d) => inColliders.boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+export const addInCircle = (x, z, r) => inColliders.circles.push({ x, z, r });
+
+// Floor height inside, in interior-local coordinates (0 except on the stairs).
+export function interiorFloor(lx, lz) {
+  if (lx > STAIRS.minX && lx < STAIRS.maxX && lz < STAIRS.bottomZ) {
+    return Math.min(STAIRS.rise, ((STAIRS.bottomZ - lz) / (STAIRS.bottomZ - STAIRS.topZ)) * STAIRS.rise);
+  }
+  return 0;
+}
+const inRect = (r, x, z) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ;
+
+function blockedInside(x, z, r) {
+  const lx = x - INTERIOR.x, lz = z - INTERIOR.z;
+  for (const [cx, cz] of [[lx - r, lz - r], [lx + r, lz - r], [lx - r, lz + r], [lx + r, lz + r]]) {
+    if (!WALKABLE.some((w) => inRect(w, cx, cz))) return true;
+  }
+  for (const b of inColliders.boxes) if (lx + r > b.minX && lx - r < b.maxX && lz + r > b.minZ && lz - r < b.maxZ) return true;
+  for (const c of inColliders.circles) if ((lx - c.x) ** 2 + (lz - c.z) ** 2 < (r + c.r) ** 2) return true;
+  return false;
+}
+
+function solidInside(x, y, z) {
+  const lx = x - INTERIOR.x, lz = z - INTERIOR.z;
+  const floor = interiorFloor(lx, lz);
+  if (y < floor + 0.2) return true;
+  return !CAMERA_SPACE.some((w) => inRect(w, lx, lz) && y < w.ceil - 0.25);
+}
+
 // Height a character stands at.
 export function standHeight(x, z) {
+  if (view.inside) return interiorFloor(x - INTERIOR.x, z - INTERIOR.z);
   const g = groundHeight(x, z);
   return onBridge(x, z) ? Math.max(g, BRIDGE.deckY) : g;
 }
@@ -105,6 +157,7 @@ export const addCircle = (x, z, r, h = 1) => colliders.circles.push({ x, z, r, h
 
 // True if the point (x, y, z) is inside something solid and tall enough.
 export function solidAt(x, y, z) {
+  if (view.inside) return solidInside(x, y, z);
   if (y < groundHeight(x, z) + 0.3) return true;
   for (const b of colliders.boxes) if (y < FLAT_Y + b.h && x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return true;
   for (const c of colliders.circles) if (y < FLAT_Y + c.h && (x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return true;
@@ -112,6 +165,7 @@ export function solidAt(x, y, z) {
 }
 
 export function blocked(x, z, r = 0.4) {
+  if (view.inside) return blockedInside(x, z, r);
   if (x < BOUNDS.minX || x > BOUNDS.maxX || z < BOUNDS.minZ || z > BOUNDS.maxZ) return true;
   if (isWater(x, z)) return true;
   for (const b of colliders.boxes) {

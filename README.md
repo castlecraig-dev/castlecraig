@@ -40,6 +40,9 @@ Progress saves automatically in the browser. Use **Restart game** in the quest p
 | Dining hall dash | The Cook (by the kitchen door) | Run to the dining hall and back to the castle door in 28 seconds. |
 | Sneak a vape into the castle | The Resident (walled garden) | Collect the vape behind the walled garden and reach the castle door without the Night Porter seeing you. If you're spotted, the vape goes back to its hiding place. |
 
+Walk through the castle's front door to go inside. The interior has the Front Hall, the Quiet Room and the
+staircase, modelled on photos of the real rooms. Walk back out through the front door to return to the grounds.
+
 Items for active quests have a golden beam of light above them and appear as orange dots on the minimap.
 
 ## Building and deploying
@@ -60,6 +63,7 @@ by default (fewer grass blades, smaller shadow maps, no ferns).
 | Path | What it is |
 | --- | --- |
 | `src/main.js` | Renderer, lighting, camera, controls, quest logic, the Night Porter's patrol and the HUD |
+| `src/interior.js` | The castle interior: Front Hall, Quiet Room and staircase |
 | `src/world.js` | Builds the estate: terrain, water, castle, walled garden, dining hall, bridge, trees, grass |
 | `src/layout.js` | Positions of everything, ground height, paths and collision |
 | `src/quests.js` | Characters, quest text, item positions and the patrol route |

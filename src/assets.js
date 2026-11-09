@@ -41,6 +41,14 @@ export async function loadAssets(renderer, onProgress) {
       forest: pbr('forest_leaves_02'),
       mud: pbr('brown_mud_02'),
       wood: pbr('wood_planks'),
+      // castle interior
+      darkFloor: pbr('dark_wooden_planks'),
+      parquet: pbr('herringbone_parquet'),
+      panels: pbr('wooden_panels'),
+      plaster: pbr('plastered_wall'),
+      marble: pbr('marble_01'),
+      velvet: pbr('velour_velvet'),
+      leather: pbr('brown_leather'),
     }),
     chars: settle({
       player: model('characters/player.glb'),
@@ -62,6 +70,21 @@ export async function loadAssets(renderer, onProgress) {
       gate: ph('large_iron_gate'),
       fern: ph('fern_02'),
       lantern: ph('wooden_lantern_01'),
+      // castle interior furniture
+      armchair: ph('ArmChair_01'),
+      ottoman: ph('Ottoman_01'),
+      sofa: ph('Sofa_01'),
+      hallLantern: ph('lantern_chandelier_01'),
+      chandelier: ph('Chandelier_02'),
+      mirror: ph('ornate_mirror_01'),
+      frame: ph('fancy_picture_frame_01'),
+      roundTable: ph('round_wooden_table_02'),
+      sideTable: ph('side_table_01'),
+      clock: ph('vintage_grandfather_clock_01'),
+      vase: ph('brass_vase_03'),
+      plant: ph('potted_plant_04'),
+      bookshelf: ph('wooden_bookshelf_worn'),
+      drawers: ph('vintage_wooden_drawer_01'),
     }),
   });
 }

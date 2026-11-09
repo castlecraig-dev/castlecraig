@@ -7,10 +7,10 @@ import * as TX from './textures.js';
 import { normalised, instanced, placed } from './assets.js';
 import { ITEMS, NPCS, PATROL } from './quests.js';
 
-const TEX_M = 3; // metres covered by one repeat of a wall texture
+export const TEX_M = 3; // metres covered by one repeat of a wall texture
 
 // ---------- geometry helpers ----------
-function box(w, h, d, x, y, z, ry = 0) {
+export function box(w, h, d, x, y, z, ry = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
   const uv = g.attributes.uv;
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
@@ -23,7 +23,7 @@ function box(w, h, d, x, y, z, ry = 0) {
   return g;
 }
 
-function cyl(rt, rb, h, x, y, z, seg = 24) {
+export function cyl(rt, rb, h, x, y, z, seg = 24) {
   const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1);
   const uv = g.attributes.uv;
   const circ = 2 * Math.PI * Math.max(rt, rb);
@@ -32,7 +32,7 @@ function cyl(rt, rb, h, x, y, z, seg = 24) {
   return g;
 }
 
-function cone(r, h, x, y, z, seg = 24) {
+export function cone(r, h, x, y, z, seg = 24) {
   const g = new THREE.ConeGeometry(r, h, seg, 1);
   const uv = g.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * 2 * Math.PI * r) / TEX_M, (uv.getY(i) * h) / TEX_M);
@@ -52,7 +52,7 @@ function gableRoof(span, rise, len, x, y, z) {
   return g;
 }
 
-function merged(geos, mat, { cast = true, receive = true } = {}) {
+export function merged(geos, mat, { cast = true, receive = true } = {}) {
   const list = geos.map((g) => (g.index ? g.toNonIndexed() : g));
   for (const g of list) {
     for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
@@ -63,7 +63,7 @@ function merged(geos, mat, { cast = true, receive = true } = {}) {
   return m;
 }
 
-const pbrMat = (t, extra = {}) => new THREE.MeshStandardMaterial({
+export const pbrMat = (t, extra = {}) => new THREE.MeshStandardMaterial({
   map: t.diff, normalMap: t.nor, roughnessMap: t.arm, metalnessMap: t.arm, ...extra,
 });
 

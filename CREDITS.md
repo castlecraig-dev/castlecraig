@@ -24,6 +24,18 @@ Models (1K)
 - [Fern 02](https://polyhaven.com/a/fern_02)
 - [Wooden Lantern 01](https://polyhaven.com/a/wooden_lantern_01)
 
+Castle interior (textures 1K, models 1K)
+- Textures: [Dark Wooden Planks](https://polyhaven.com/a/dark_wooden_planks), [Herringbone Parquet](https://polyhaven.com/a/herringbone_parquet),
+  [Wooden Panels](https://polyhaven.com/a/wooden_panels), [Plastered Wall](https://polyhaven.com/a/plastered_wall),
+  [Marble 01](https://polyhaven.com/a/marble_01), [Velour Velvet](https://polyhaven.com/a/velour_velvet), [Brown Leather](https://polyhaven.com/a/brown_leather)
+- Models: [Arm Chair 01](https://polyhaven.com/a/ArmChair_01), [Ottoman 01](https://polyhaven.com/a/Ottoman_01), [Sofa 01](https://polyhaven.com/a/Sofa_01),
+  [Lantern Chandelier 01](https://polyhaven.com/a/lantern_chandelier_01), [Chandelier 02](https://polyhaven.com/a/Chandelier_02),
+  [Ornate Mirror 01](https://polyhaven.com/a/ornate_mirror_01), [Fancy Picture Frame 01](https://polyhaven.com/a/fancy_picture_frame_01),
+  [Round Wooden Table 02](https://polyhaven.com/a/round_wooden_table_02), [Side Table 01](https://polyhaven.com/a/side_table_01),
+  [Vintage Grandfather Clock 01](https://polyhaven.com/a/vintage_grandfather_clock_01), [Brass Vase 03](https://polyhaven.com/a/brass_vase_03),
+  [Potted Plant 04](https://polyhaven.com/a/potted_plant_04), [Wooden Bookshelf Worn](https://polyhaven.com/a/wooden_bookshelf_worn),
+  [Vintage Wooden Drawer 01](https://polyhaven.com/a/vintage_wooden_drawer_01)
+
 ## KayKit by Kay Lousberg — [kaylousberg.com](https://kaylousberg.com)
 
 - [KayKit Character Pack: Adventurers](https://kaylousberg.itch.io/kaykit-adventurers): all characters and their
