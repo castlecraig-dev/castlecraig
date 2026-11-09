@@ -192,3 +192,15 @@ export function signTexture(text) {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+
+// Soft grey puff for cigarette smoke.
+export function smokeTexture() {
+  return canvasTexture(64, (g, s) => {
+    const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grad.addColorStop(0, 'rgba(235,235,235,0.9)');
+    grad.addColorStop(0.5, 'rgba(220,220,220,0.35)');
+    grad.addColorStop(1, 'rgba(210,210,210,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, s, s);
+  }, { repeat: false });
+}

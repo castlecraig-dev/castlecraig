@@ -105,6 +105,26 @@ html, body {
   100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
 }
 
+#battle {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, 60vw);
+  padding: 8px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 12px;
+}
+#battle[hidden], #resist[hidden] { display: none; }
+#battle .bar { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; margin: 3px 0; }
+#battle .track { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+#battle i { display: block; height: 100%; width: 100%; background: var(--done); transition: width .2s; }
+#battle .foe i { background: #a050e0; }
+#resist {
+  position: fixed; right: 20px; bottom: 120px; padding: 12px 22px; border-radius: 30px;
+  background: #e8b860; color: #1d2b22; border: none; font: bold 16px Georgia, serif; cursor: pointer;
+}
+.npc-tag.villain .name { color: #e0a0ff; }
+.npc-tag .bubble {
+  max-width: 220px; margin-bottom: 4px; padding: 5px 10px; border-radius: 12px; background: rgba(40, 20, 50, .8);
+  color: #f0e0ff; font-style: italic; font-size: 13px; text-align: center;
+}
+.npc-tag .bubble:empty { display: none; }
+
 #dialogue {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   width: min(660px, calc(100vw - 32px)); padding: 14px 18px;

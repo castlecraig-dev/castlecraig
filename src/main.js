@@ -10,9 +10,11 @@ import { loadAssets, analyseSky } from './assets.js';
 import { buildWorld } from './world.js';
 import { buildInterior } from './interior.js';
 import { buildAnimals } from './animals.js';
+import { buildMichael, MICHAEL } from './villain.js';
 import { Character, turnTowards } from './characters.js';
-import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START, FINAL_REWARD } from './quests.js';
-import { glowTexture } from './textures.js';
+import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START, FINAL_REWARD, SHELTER } from './quests.js';
+const SHELTER_POS = [SHELTER.x, SHELTER.z];
+import { glowTexture, smokeTexture } from './textures.js';
 
 const $ = (id) => document.getElementById(id);
 const touch = matchMedia('(pointer: coarse)').matches;
@@ -137,6 +139,44 @@ function start(assets) {
     return { def: n, char: c, tag };
   });
 
+  // ----- Michael, who wanders about tempting people -----
+  const battleHud = { willpower: 100, hold: 100 };
+  const michael = buildMichael(outside, {
+    char: makeChar('cook', '#5a3050'),
+    say: (...a) => say(...a),
+    toast: (m) => toast(m),
+    isBusy: () => !dlg.hidden,
+    onWin: () => {
+      state.michaelBanished = true;
+      grant(MICHAEL.reward);
+      $('battle').hidden = true;
+      save(); renderHud();
+    },
+    onLose: () => {
+      $('battle').hidden = true;
+      battleHud.willpower = 100;
+      say('You', ["Michael's words got to you. Take a breath, regroup and try again when you're ready."], () => {
+        [state.x, state.z] = L.houseToWorld(0, -12);
+      });
+    },
+  });
+  outdoorLabels.push(michael.label);
+  if (state.michaelBanished) michael.banishNow();
+  function confrontMichael() {
+    state.michaelMet = true;
+    say('Michael', [MICHAEL.lines[Math.floor(Math.random() * MICHAEL.lines.length)], "Oh, you think you can stop me? Let's see how strong you really are."], () => {
+      battleHud.willpower = 100;
+      michael.startBattle();
+      $('battle').hidden = false;
+      toast(touch ? 'Tap Resist to fight back!' : 'Press F to resist! Dodge his temptations.');
+    });
+    renderHud();
+  }
+  function resist() {
+    if (michael.resist(state)) player.playOnce('Interact');
+  }
+  $('resist').addEventListener('click', resist);
+
   // labels over the escaped alpacas while you're looking for them
   const lostLabels = animals.lost.map((a) => {
     const d = document.createElement('div');
@@ -158,6 +198,60 @@ function start(assets) {
     L.addCircle(a.x, a.z, 0.4);
     return { def: a, char: c };
   });
+
+  // ----- everyone at the smoking shelter has a cigarette on the go -----
+  const smokeTex = smokeTexture();
+  const puffs = [];
+  const smokers = [...ambient.map((a) => a.char), npcs.find((n) => n.def.id === 'smokers').char].map((char, i) => {
+    const hand = char.root.getObjectByName('handslot.r'), head = char.root.getObjectByName('head') || char.root.getObjectByName('Head');
+    if (!hand) return null;
+    char.root.updateMatrixWorld(true);
+    const ws = hand.getWorldScale(new THREE.Vector3()).x;
+    const cig = new THREE.Group();
+    cig.add(new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.13, 8).translate(0, 0.065, 0), new THREE.MeshStandardMaterial({ color: '#f4f1ea', roughness: 0.6 })));
+    cig.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0095, 0.035, 8).translate(0, 0.0175, 0), new THREE.MeshStandardMaterial({ color: '#c8873a', roughness: 0.7 })));
+    const ember = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), new THREE.MeshStandardMaterial({ color: '#ff6a20', emissive: '#ff4a10', emissiveIntensity: 2 }));
+    ember.position.y = 0.132;
+    cig.add(ember);
+    cig.scale.setScalar(1.6 / ws); // a bit oversized so you can see it on these chunky characters
+    cig.rotation.set(0.6, 0, -0.4);
+    hand.add(cig);
+    return { char, ember, head, next: Math.random(), exhale: 2 + i * 1.7 };
+  }).filter(Boolean);
+  const _tip = new THREE.Vector3();
+  function puff(pos, size, life, rise) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
+    sp.position.copy(pos);
+    sp.scale.setScalar(size);
+    outside.add(sp);
+    puffs.push({ sp, age: 0, life, size, rise, drift: (Math.random() - 0.5) * 0.15 });
+  }
+  function updateSmoke(dt, t) {
+    const near = Math.hypot(SHELTER_POS[0] - state.x, SHELTER_POS[1] - state.z) < 70 && !L.view.inside;
+    for (const s of smokers) {
+      if (!near) continue;
+      s.ember.material.emissiveIntensity = 1.6 + Math.max(0, Math.sin(t * 0.9 + s.exhale)) * 2.5; // drawing on it now and then
+      if ((s.next -= dt) < 0) { s.next = 0.35 + Math.random() * 0.3; s.ember.getWorldPosition(_tip); puff(_tip, 0.12, 2.8, 0.35); }
+      if ((s.exhale -= dt) < 0 && s.head) {
+        s.exhale = 5 + Math.random() * 4;
+        s.head.getWorldPosition(_tip);
+        const f = s.char.root.rotation.y;
+        _tip.x += Math.sin(f) * 0.25; _tip.z += Math.cos(f) * 0.25; _tip.y -= 0.05;
+        for (let k = 0; k < 3; k++) puff(_tip, 0.25 + k * 0.08, 2.4, 0.25);
+      }
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i];
+      p.age += dt;
+      const k = p.age / p.life;
+      if (k >= 1) { outside.remove(p.sp); p.sp.material.dispose(); puffs.splice(i, 1); continue; }
+      p.sp.position.y += p.rise * dt;
+      p.sp.position.x += (p.drift + Math.sin(t * 1.3 + i) * 0.05) * dt;
+      p.sp.scale.setScalar(p.size * (1 + k * 3));
+      p.sp.material.opacity = Math.min(1, k * 6) * (1 - k) * 0.55;
+    }
+  }
+
 
   // The Night Porter on patrol
   const porter = makeChar(PATROL.model, '#8c96c8');
@@ -196,17 +290,16 @@ function start(assets) {
   const itemObjs = {};
   for (const [id, it] of Object.entries(ITEMS)) {
     const g = new THREE.Group();
-    g.add(makeItemMesh(it.kind));
+    const mesh = makeItemMesh(it.kind);
+    mesh.rotation.set(-Math.PI / 2, 0, (it.x * 7.3) % 6.28); // lying on its side in the grass
+    g.add(mesh);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: '#ffe2a0', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    halo.scale.setScalar(1.6);
+    halo.scale.setScalar(0.9);
+    halo.position.y = 0.15;
     g.add(halo);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 40, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-    beam.position.y = 20;
-    g.add(beam);
-    g.position.set(it.x, L.groundHeight(it.x, it.z) + 0.9, it.z);
+    g.position.set(it.x, L.groundHeight(it.x, it.z) + 0.1, it.z);
     outside.add(g);
-    itemObjs[id] = { group: g, beam, base: g.position.y };
+    itemObjs[id] = { group: g, halo, base: g.position.y };
   }
 
   // ----- checkpoint ring for the timed run -----
@@ -224,6 +317,7 @@ function start(assets) {
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.add('run');
     if (['KeyE', 'Space', 'Enter'].includes(e.code)) { e.preventDefault(); if (!e.repeat) act(); }
     if (e.code === 'KeyV' && !e.repeat) toggleView();
+    if (e.code === 'KeyF' && !e.repeat) resist();
   });
   addEventListener('keyup', (e) => {
     if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]);
@@ -363,6 +457,7 @@ function start(assets) {
 
   function act() {
     if (!dlg.hidden) { next(); return; }
+    if (!L.view.inside && michael.near(state.x, state.z)) { confrontMichael(); return; }
     const npc = nearestNpc();
     if (!npc) {
       const a = nearestAmbient();
@@ -549,7 +644,14 @@ function start(assets) {
     const log = $('quest-log');
     log.innerHTML = '';
     const known = NPCS.filter((n) => state.quests[n.id]);
-    if (!known.length) log.innerHTML = '<li class="empty">Talk to people marked with a gold <b>!</b></li>';
+    if (state.michaelMet || state.michaelBanished) {
+      const li = document.createElement('li');
+      li.textContent = 'Banish Michael from the grounds';
+      if (state.michaelBanished) li.className = 'done';
+      else { const p = document.createElement('div'); p.className = 'progress'; p.textContent = 'Find him and resist his temptations'; li.appendChild(p); }
+      log.appendChild(li);
+    }
+    if (!known.length && !state.michaelMet) log.innerHTML = '<li class="empty">Talk to people marked with a gold <b>!</b></li>';
     for (const n of known) {
       const li = document.createElement('li');
       const q = n.quest;
@@ -560,7 +662,7 @@ function start(assets) {
         p.className = 'progress';
         if (q.type === 'fetch') p.textContent = q.items.every((i) => state.bag.includes(i)) ? `Return to ${n.name}` : `Search the grounds`;
         if (q.type === 'timed') p.textContent = `Talk to ${n.name} to start the clock`;
-        if (q.type === 'sneak') p.textContent = carryingVape() ? 'Reach the front door unseen' : 'Find the vape north of the walled garden';
+        if (q.type === 'sneak') p.textContent = carryingVape() ? 'Reach the front door unseen' : 'Find the hidden vape';
         if (q.type === 'herd') p.textContent = `${state.alpacasHome || 0} of ${q.count} alpacas back in the paddock`;
         li.appendChild(p);
       }
@@ -614,11 +716,11 @@ function start(assets) {
     for (const [id, it] of Object.entries(ITEMS)) {
       if (!itemAvailable(id)) continue;
       const owner = NPCS.find((n) => (n.quest.items || [n.quest.item]).includes(id));
-      if (owner && isActive(owner.id)) dot(it.x, it.z, 3, '#ff9d2a');
     }
     if (run) { const cp = run.npc.def.quest.checkpoints[run.idx]; dot(cp.x, cp.z, 5, '#ffcc55'); }
     if (carryingVape()) dot(patrol.x, patrol.z, 3.5, '#ff4a3a');
-    if (isActive(keeper.def.id)) for (const a of animals.lost) if (!a.home) dot(a.x, a.z, 3.5, a.state === 'follow' ? '#fff3c0' : '#e8a050');
+    if (!michael.banished) dot(...michael.pos, 3.5, '#a050e0');
+    if (isActive(keeper.def.id)) for (const a of animals.lost) if (a.state === 'follow') dot(a.x, a.z, 3.5, '#fff3c0'); // only the ones you've found
     // player arrow
     mctx.save();
     mctx.translate(w / 2, h / 2);
@@ -711,7 +813,7 @@ function start(assets) {
 
   function updateNpcs(dt, t) {
     const searching = isActive('keeper');
-    for (const { a, o } of lostLabels) o.visible = searching && !L.view.inside && a.lost && a.state !== 'follow' && Math.hypot(a.x - state.x, a.z - state.z) < 80;
+    for (const { a, o } of lostLabels) o.visible = searching && !L.view.inside && a.lost && a.state !== 'follow' && Math.hypot(a.x - state.x, a.z - state.z) < 10; // only once you're close
     for (const n of npcs) {
       const d = Math.hypot(n.def.x - state.x, n.def.z - state.z);
       const want = d < 6 ? Math.atan2(state.x - n.def.x, state.z - n.def.z) : n.def.facing;
@@ -735,16 +837,21 @@ function start(assets) {
       const show = itemAvailable(id);
       o.group.visible = show;
       if (!show) continue;
-      o.group.position.y = o.base + Math.sin(t * 2 + o.base) * 0.12;
-      o.group.children[0].rotation.y = t * 1.2;
-      const owner = NPCS.find((n) => (n.quest.items || [n.quest.item]).includes(id));
-      o.beam.visible = !!owner && isActive(owner.id);
-      o.beam.material.opacity = 0.1 + Math.sin(t * 3) * 0.04;
+      // no beacons: just a faint glint when you're right on top of it
+      const near = Math.hypot(ITEMS[id].x - state.x, ITEMS[id].z - state.z);
+      o.halo.visible = near < 6;
+      o.halo.material.opacity = (1 - near / 6) * (0.35 + Math.sin(t * 4) * 0.15);
     }
   }
 
   function updatePrompt() {
     const free = dlg.hidden && !L.view.inside;
+    if (free && michael.near(state.x, state.z)) {
+      $('prompt').textContent = `${touch ? 'Tap Talk to' : 'Press E to'} confront Michael`;
+      $('prompt').hidden = false;
+      $('action').classList.add('ready');
+      return;
+    }
     const n = free ? nearestNpc() : null;
     const a = free && !n ? nearestAmbient() : null;
     const alpaca = free && !n && !a && animals.nearAlpaca(state.x, state.z);
@@ -843,6 +950,12 @@ function start(assets) {
     updatePorter(dt);
     updateNpcs(dt, t);
     for (const a of ambient) a.char.update(dt);
+    updateSmoke(dt, t);
+    if (!L.view.inside) michael.update(dt, t, state, battleHud);
+    const fighting = michael.mode === 'battle';
+    $('battle').hidden = !fighting;
+    $('resist').hidden = !fighting;
+    if (fighting) { $('will').style.width = `${battleHud.willpower}%`; $('hold').style.width = `${battleHud.hold}%`; }
     if (!L.view.inside) animals.update(dt, t, { x: state.x, z: state.z, heading: facing });
     updateQuests(dt, realDt);
     updateDoors();
@@ -876,7 +989,7 @@ function start(assets) {
     ]);
   }
 
-  window.__game = { state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
+  window.__game = { michael, battleHud, state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
 }
 
 // ---------- item models ----------

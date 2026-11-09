@@ -33,6 +33,7 @@ Then open the address Vite prints (usually http://localhost:5173).
 | Look around | Drag with the mouse, scroll to zoom | Drag on the right half of the screen |
 | Talk / continue / pat an alpaca | E, Space or Enter | **Talk** button |
 | First-person view | V, or scroll all the way in | 👁 button |
+| Resist (fighting Michael) | F | **Resist** button |
 
 Progress saves automatically in the browser. Use **Restart game** in the quest panel to start again.
 
@@ -47,6 +48,13 @@ Progress saves automatically in the browser. Use **Restart game** in the quest p
 | Find the pack of cigarettes | A Shelter Regular (smoking shelter) | Find the pack dropped near the Old Watermill and bring it back to the shelter. |
 | Find the 3 lost alpacas | The Alpaca Keeper (paddock gate) | Three alpacas have wandered off across the estate. Pat each one so it follows you, then lead them back into the paddock. |
 
+### Michael
+
+Michael wanders the grounds trying to tempt residents into giving up on their recovery. Walk up to him and
+press E to confront him. In the battle he circles you, throwing temptations that drain your willpower; press F
+(or tap **Resist**) to fire affirmations back until his hold breaks and he's banished from the estate. If your
+willpower runs out, you take a breath back at the house and can try again.
+
 Every quest gives recovery points and a badge, shown in the quest panel. The dining hall dash also earns new
 running shoes (15% faster running), and finishing everything earns the Castle Craig Graduate badge.
 
@@ -54,7 +62,7 @@ Walk through the house's front door to go inside. The interior has the Front Hal
 staircase, modelled on photos of the real rooms and arranged to fit the real building's footprint (the real
 floor plans aren't public, so room positions are a best fit). Walk back out through the front door to return to the grounds.
 
-Items for active quests have a golden beam of light above them and appear as orange dots on the minimap.
+Hidden items lie in the grass and only glint when you're right next to them, so listen to the hints.
 
 ## Building and deploying
 
@@ -77,6 +85,7 @@ by default (fewer grass blades, smaller shadow maps, no ferns).
 | `src/interior.js` | The castle interior: Front Hall, Quiet Room and staircase |
 | `src/world.js` | Builds the estate from the map data: terrain, hills, buildings, the house, walls, hedges, trees, grass, the lake and the smoking shelter |
 | `src/animals.js` | Alpacas, rabbits, garden birds and rooks |
+| `src/villain.js` | Michael, who wanders the grounds, and the battle to banish him |
 | `src/layout.js` | Ground height, the ground mask and collision, read from the map data |
 | `src/quests.js` | Characters, quest text, item positions and the patrol route |
 | `src/characters.js` | Animated characters (idle, walk, run, cheer, pick up) |

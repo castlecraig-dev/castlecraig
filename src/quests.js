@@ -20,8 +20,9 @@ const [doorX, doorZ] = hw(0, -6);
 export const CASTLE_DOOR = { x: doorX, z: doorZ, r: 3, name: 'the front door of the house' };
 export const DINING = { id: 399619664, x: 54.5, z: 297.9, r: 3.2, name: 'the dining hall' };
 
-// The smoking shelter beside the path down to the clinic buildings.
-export const SHELTER = { x: 24, z: 145, ry: -0.4 };
+// The smoking shelter, across the forecourt from the house and facing its front door.
+const [shX, shZ] = hw(16, -48), [fdX, fdZ] = hw(0, -2.3);
+export const SHELTER = { x: shX, z: shZ, ry: Math.atan2(fdX - shX, fdZ - shZ) };
 const shelterPt = (x, z) => [SHELTER.x + x * Math.cos(SHELTER.ry) + z * Math.sin(SHELTER.ry), SHELTER.z - x * Math.sin(SHELTER.ry) + z * Math.cos(SHELTER.ry)];
 
 // The alpaca paddock in the meadow north of the house, with a gate on the house side.
@@ -36,8 +37,8 @@ export const NPCS = [
     quest: {
       type: 'fetch', title: 'Find the empty vodka bottle', items: ['vodka'],
       reward: { points: 100, badge: 'Clean Grounds' },
-      intro: "Someone's stashed an empty vodka bottle out in the woods south-west of the clinic gardens, past the farm track. Find it and bring it back so it can go in the bin.",
-      waiting: 'No sign of the bottle yet? Try the woods south-west of the clinic gardens.',
+      intro: "Someone's stashed an empty vodka bottle somewhere on the estate. Somewhere quiet, I'd guess, where nobody walks. Find it and bring it back so it can go in the bin.",
+      waiting: "No sign of the bottle yet? Think about where you'd hide something you didn't want found.",
       done: "That's it. Into the recycling it goes. Thanks for keeping the place clear.",
     },
   },
@@ -46,8 +47,8 @@ export const NPCS = [
     quest: {
       type: 'fetch', title: 'Find the bag of drugs', items: ['drugs'],
       reward: { points: 150, badge: 'Honesty' },
-      intro: "We've had word that a bag of drugs has been hidden down here by the lake. Please find it and bring it straight to me.",
-      waiting: "The bag is somewhere around the lake's edge. Have a look by the reeds on the east side.",
+      intro: "We've had word that a bag of drugs has been hidden somewhere near here. Please find it and bring it straight to me.",
+      waiting: "Keep looking. Whoever hid it won't have gone far.",
       done: "Thank you for bringing it in. That took courage. It'll be disposed of safely.",
     },
   },
@@ -68,8 +69,8 @@ export const NPCS = [
     quest: {
       type: 'sneak', title: 'Sneak a vape into the house', item: 'vape', target: CASTLE_DOOR,
       reward: { points: 120, badge: 'Ghost' },
-      intro: "Psst. I hid a vape just outside the north wall of this garden. Can you get it to the front door of the house without the Night Porter seeing you? Stay out of their line of sight.",
-      waiting: "The vape is just north of the walled garden. Keep out of the Night Porter's view on the way to the front door.",
+      intro: "Psst. I hid a vape outside, somewhere near these walls. Can you get it to the front door of the house without the Night Porter seeing you? Stay out of their line of sight.",
+      waiting: "It's not inside the garden, I'll say that much. And keep out of the Night Porter's view on the way to the front door.",
       caught: 'Spotted! The Night Porter confiscated the vape and put it back where it was found.',
       done: 'You made it in without being seen! Nobody needs to know.',
     },
@@ -79,8 +80,8 @@ export const NPCS = [
     quest: {
       type: 'fetch', title: 'Find the pack of cigarettes', items: ['cigarettes'],
       reward: { points: 100, badge: 'Good Neighbour' },
-      intro: "Somebody dropped our pack of cigarettes on the walk back from the Old Watermill, down past the clinic gardens. Could you find it and bring it to the shelter? We'll share them round.",
-      waiting: "Still no cigarettes? They'll be somewhere near the Old Watermill.",
+      intro: "We're down to our last few smokes. Somebody dropped our pack of cigarettes on a walk this morning. Could you find it and bring it to the shelter? We'll share them round.",
+      waiting: "Still no cigarettes? Whoever dropped them likes a walk by the old buildings down south.",
       done: "Legend! The whole shelter thanks you. Pull up a bench any time.",
     },
   },
@@ -89,7 +90,7 @@ export const NPCS = [
     quest: {
       type: 'herd', title: 'Find the 3 lost alpacas', count: 3,
       reward: { points: 150, badge: 'Alpaca Whisperer' },
-      intro: "Somebody left the paddock gate open and three of my alpacas have wandered off! One went west across the meadow, one north-east towards the fields and one down past the clinic gardens to the south-west. Give each one a pat and it'll follow you. Bring them back through the gate.",
+      intro: "Somebody left the paddock gate open and three of my alpacas have wandered off! They could be anywhere on the estate. Give each one a pat and it'll follow you. Bring them back through the gate.",
       waiting: 'Still missing some alpacas. Pat them and lead them back into the paddock.',
       done: "All three home safe! They'll be humming about you for weeks.",
     },
