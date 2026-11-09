@@ -47,6 +47,10 @@ Progress saves automatically in the browser. Use **Restart game** in the quest p
 | Sneak a vape into the house | The Resident (walled garden) | Collect the vape just north of the walled garden and reach the front door without the Night Porter seeing you. If you're spotted, the vape goes back to its hiding place. |
 | Find the pack of cigarettes | A Shelter Regular (smoking shelter) | Find the pack dropped near the Old Watermill and bring it back to the shelter. |
 | Find the 3 lost alpacas | The Alpaca Keeper (paddock gate) | Three alpacas have wandered off across the estate. Pat each one so it follows you, then lead them back into the paddock. |
+| Clear out Michael's stash | The Counsellor (south lawn) | Once Michael is banished, find the hip flask, scratchcard and betting slip he left in quiet corners of the estate. |
+| Letters home | The Receptionist (front porch) | Collect letters from three residents around the grounds and post them in the pillar box by the front door within 6 minutes. |
+| Alpaca walk | The Therapy Coordinator (paddock gate) | Lead an alpaca on a rope to the lake and back. If Michael is still about and gets close, she bolts. |
+| Night-time round | The Night Porter (forecourt) | Night falls and you get a torch. Find the resident who hasn't come in and lead them back to the porch. |
 
 ### Michael
 
@@ -86,6 +90,7 @@ by default (fewer grass blades, smaller shadow maps, no ferns).
 | `src/world.js` | Builds the estate from the map data: terrain, hills, buildings, the house, walls, hedges, trees, grass, the lake and the smoking shelter |
 | `src/animals.js` | Alpacas, rabbits, garden birds and rooks |
 | `src/villain.js` | Michael, who wanders the grounds, and the battle to banish him |
+| `src/sidequests.js` | Michael's stash, Letters home, the Alpaca walk and the Night-time round |
 | `src/layout.js` | Ground height, the ground mask and collision, read from the map data |
 | `src/quests.js` | Characters, quest text, item positions and the patrol route |
 | `src/characters.js` | Animated characters (idle, walk, run, cheer, pick up) |

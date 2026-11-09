@@ -179,10 +179,10 @@ export function buildAnimals(scene, { quality }) {
       a.timer -= dt;
       const dp = Math.hypot(px - a.x, pz - a.z);
       let moving = false;
-      if (a.state === 'follow') {
-        // trot along behind the player, single file
-        const idx = lost.filter((o) => o.state === 'follow').indexOf(a);
-        const back = 2.6 + idx * 2.2, fx = px - Math.sin(player.heading ?? 0) * back, fz = pz - Math.cos(player.heading ?? 0) * back;
+      if (a.state === 'follow' || a.state === 'lead') {
+        // trot along behind the player, single file (or close by on a lead)
+        const idx = a.state === 'lead' ? 0 : lost.filter((o) => o.state === 'follow').indexOf(a);
+        const back = a.state === 'lead' ? 2.0 : 2.6 + idx * 2.2, fx = px - Math.sin(player.heading ?? 0) * back, fz = pz - Math.cos(player.heading ?? 0) * back;
         const dx = fx - a.x, dz = fz - a.z, d = Math.hypot(dx, dz);
         if (d > 30 && !L.blocked(fx, fz, 0.5)) { a.x = fx; a.z = fz; } // fell far behind: catch up
         else if (d > 0.6) {
@@ -192,7 +192,7 @@ export function buildAnimals(scene, { quality }) {
           else if ((a.stuck = (a.stuck || 0) + dt) > 1.5 && !L.blocked(fx, fz, 0.5)) { a.x = fx; a.z = fz; a.stuck = 0; } // caught on a fence: catch up
           moving = true;
         }
-        if (inPaddock(a)) { a.state = 'graze'; a.lost = false; a.home = true; a.timer = 2; a.happy = 1.2; }
+        if (a.lost && a.state === 'follow' && inPaddock(a)) { a.state = 'graze'; a.lost = false; a.home = true; a.timer = 2; a.happy = 1.2; }
       } else if (a.state === 'lost' && a.timer < 0) {
         a.state = 'wander';
         a.tx = a.homeX + (R() - 0.5) * 14; a.tz = a.homeZ + (R() - 0.5) * 14;
@@ -225,7 +225,7 @@ export function buildAnimals(scene, { quality }) {
       if (dp < 1.6) { // don't let the player walk through them
         a.x += ((a.x - px) / dp) * (1.6 - dp); a.z += ((a.z - pz) / dp) * (1.6 - dp);
       }
-      if (!a.lost && a.state !== 'follow') {
+      if (!a.lost && a.state !== 'follow' && a.state !== 'lead') {
         a.x = THREE.MathUtils.clamp(a.x, P.minX + 1, P.maxX - 1);
         a.z = THREE.MathUtils.clamp(a.z, P.minZ + 1, P.maxZ - 1);
       }
@@ -336,8 +336,21 @@ export function buildAnimals(scene, { quality }) {
       best.state = 'follow';
       return 'The alpaca hums and starts following you!';
     }
-    if (best.state !== 'follow') { best.state = best.lost ? 'lost' : 'graze'; best.timer = 4; }
+    if (best.state !== 'follow' && best.state !== 'lead') { best.state = best.lost ? 'lost' : 'graze'; best.timer = 4; }
     return ['The alpaca hums happily.', 'The alpaca nuzzles your hand.', 'Soft! The alpaca leans in for more.'][Math.floor(Math.random() * 3)];
+  }
+  // The alpaca walk: put one of the herd on a lead.
+  let leadAlpaca = null;
+  function startLead() {
+    leadAlpaca = alpacas.find((a) => !a.lost && a.state !== 'follow') || alpacas[0];
+    leadAlpaca.state = 'lead';
+    return leadAlpaca;
+  }
+  function endLead(bolt = false) {
+    if (!leadAlpaca) return;
+    if (bolt) { leadAlpaca.x = (P.minX + P.maxX) / 2; leadAlpaca.z = (P.minZ + P.maxZ) / 2; }
+    leadAlpaca.state = 'graze'; leadAlpaca.timer = 3; leadAlpaca.happy = bolt ? 0 : 1.2;
+    leadAlpaca = null;
   }
   const herdStatus = () => ({ home: lost.filter((a) => a.home).length, following: lost.filter((a) => a.state === 'follow').length });
   // Put alpacas already brought home (from a saved game) back in the paddock.
@@ -346,5 +359,5 @@ export function buildAnimals(scene, { quality }) {
   }
   const nearAlpaca = (x, z) => alpacas.some((a) => Math.hypot(a.x - x, a.z - z) < 2.6);
 
-  return { group, update, interact, nearAlpaca, alpacas, rabbits, lost, herdStatus, restoreHome };
+  return { group, update, interact, nearAlpaca, alpacas, rabbits, lost, herdStatus, restoreHome, startLead, endLead, inPaddock, get leadAlpaca() { return leadAlpaca; } };
 }

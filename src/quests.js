@@ -14,6 +14,14 @@ export const ITEMS = {
   drugs: { name: 'Bag of drugs', kind: 'bag', x: 50.5, z: 466 },
   vape: { name: 'Vape', kind: 'vape', x: 95, z: 180 },
   cigarettes: { name: 'Pack of cigarettes', kind: 'cigarettes', x: 110, z: 404 },
+  // Michael's stash (only appears once he's banished)
+  flask: { name: 'Hip flask', kind: 'flask', x: -240, z: -262, after: 'michael' },
+  scratchcard: { name: 'Lottery scratchcard', kind: 'card', x: -118, z: 32, after: 'michael' },
+  slip: { name: 'Betting slip', kind: 'card', x: 180, z: -262, after: 'michael' },
+  // letters are handed over by residents, not found on the ground
+  letter1: { name: 'Letter to Mum', kind: 'letter' },
+  letter2: { name: 'Letter to Sam', kind: 'letter' },
+  letter3: { name: 'Letter to Gran', kind: 'letter' },
 };
 
 const [doorX, doorZ] = hw(0, -6);
@@ -95,7 +103,63 @@ export const NPCS = [
       done: "All three home safe! They'll be humming about you for weeks.",
     },
   },
+  {
+    id: 'counsellor', name: 'The Counsellor', model: 'guide', tint: '#c8d8b0', x: hw(-6, 26)[0], z: hw(-6, 26)[1], facing: 0,
+    quest: {
+      type: 'stash', title: "Clear out Michael's stash", items: ['flask', 'scratchcard', 'slip'], needs: 'michael',
+      reward: { points: 150, badge: 'Clear Path' },
+      locked: "There's someone called Michael hanging about the grounds, getting in people's ears. Deal with him first, then come and see me.",
+      intro: "Michael's gone, but he left things behind: a hip flask, a lottery scratchcard and a betting slip, tucked away where people would stumble on them. He liked the quiet corners of the estate, out by the old buildings. Bring them to me.",
+      waiting: "Still some of Michael's things out there. Think about where he liked to loiter, well away from the house.",
+      done: "That's the lot. Nothing of his left to trip anyone up. Well done.",
+    },
+  },
+  {
+    id: 'receptionist', name: 'The Receptionist', model: 'cook', tint: '#d0c0e0', x: hw(-3.5, -8.5)[0], z: hw(-3.5, -8.5)[1], facing: Math.PI,
+    quest: {
+      type: 'letters', title: 'Letters home', items: ['letter1', 'letter2', 'letter3'], timeLimit: 360,
+      reward: { points: 120, badge: 'Postie' },
+      intro: "The post goes in six minutes! Three residents have letters home that need to catch it. They're out on the grounds somewhere. Collect them and pop them in the postbox by the front door.",
+      waiting: 'Collect the three letters and post them in the box by the door before the post goes.',
+      failed: "Oh no, the post's gone. The letters have gone back to their writers. Come and see me when you want to try again.",
+      done: "All three in the box with time to spare. Their families will be thrilled.",
+    },
+  },
+  {
+    id: 'coordinator', name: 'The Therapy Coordinator', model: 'groundskeeper', tint: '#a8c8e8', x: -10, z: -134, facing: Math.PI,
+    quest: {
+      type: 'walk', title: 'Alpaca walk', target: { x: 28, z: 452, r: 10, name: 'the lake' },
+      reward: { points: 120, badge: 'Alpaca Buddy' },
+      intro: "Fancy taking one of the alpacas for a walk? Lead her down to the lake and back to the paddock. Keep her calm, mind. If Michael's about and gets close, she'll spook.",
+      waiting: "Take her down to the lake, then bring her back into the paddock.",
+      spooked: "Michael got too close and spooked her! She's bolted back to the paddock. Come and get her again when you're ready.",
+      retry: "Ready to try again? Here she is. Down to the lake and back.",
+      done: 'She had a lovely time. Look at her humming!',
+    },
+  },
+  {
+    id: 'porter', name: 'The Night Porter', usePorter: true, x: 0, z: 0, facing: 0,
+    quest: {
+      type: 'night', title: 'Night-time round',
+      reward: { points: 150, badge: 'Night Light' },
+      intro: "Glad you're here. One of the residents hasn't come in, and it's getting dark. Take this torch and have a look round. They like to sit somewhere quiet, near water or under the trees. Bring them back to me at the house.",
+      waiting: "Still no sign? Keep looking. Somewhere quiet, near water or under the trees.",
+      found: "Oh! I lost track of time out here. Lead the way back, I'll follow your torch.",
+      done: "There you are! Thank you. Right, everyone inside. Lovely night for it, mind.",
+    },
+  },
 ];
+
+// Residents with letters home for the Receptionist's quest.
+export const WRITERS = [
+  { name: 'Resident by the lake', model: 'guide', tint: '#f0d0b0', x: 12, z: 450, letter: 'letter1', line: "Here's mine. It's to my mum. Thanks for taking it." },
+  { name: 'Resident in the walled garden', model: 'gardener', tint: '#d8e0c0', x: 88, z: 205, letter: 'letter2', line: "Oh, the post! Here, it's for my brother Sam." },
+  { name: 'Resident by the dining hall', model: 'cook', tint: '#f0e0c8', x: 32, z: 318, letter: 'letter3', line: "Would you? It's for my gran. She worries." },
+].map((w) => ({ ...w, chat: 'Lovely day. I was just thinking about home.' }));
+export const POSTBOX = { x: hw(3.5, -8.5)[0], z: hw(3.5, -8.5)[1] };
+
+// Where the missing resident might be on the Night Porter's round.
+export const NIGHT_SPOTS = [[0, 497], [-160, 180], [140, 330]];
 
 // Where the three escaped alpacas are wandering.
 export const LOST_ALPACAS = [[-160, -100], [200, -150], [-60, 250]];

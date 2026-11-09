@@ -11,6 +11,7 @@ import { buildWorld } from './world.js';
 import { buildInterior } from './interior.js';
 import { buildAnimals } from './animals.js';
 import { buildMichael, MICHAEL } from './villain.js';
+import { buildSideQuests } from './sidequests.js';
 import { Character, turnTowards } from './characters.js';
 import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START, FINAL_REWARD, SHELTER } from './quests.js';
 const SHELTER_POS = [SHELTER.x, SHELTER.z];
@@ -123,7 +124,7 @@ function start(assets) {
     usedModels.add(model);
     return c;
   };
-  const npcs = NPCS.map((n) => {
+  const npcs = NPCS.filter((n) => !n.usePorter).map((n) => {
     const c = makeChar(n.model, n.tint);
     c.root.position.set(n.x, L.standHeight(n.x, n.z), n.z);
     c.root.rotation.y = n.facing;
@@ -261,6 +262,20 @@ function start(assets) {
   porterTag.innerHTML = `<span class="name">${PATROL.name}</span>`;
   const pl = new CSS2DObject(porterTag); pl.position.set(0, 2.35, 0); porter.root.add(pl); outdoorLabels.push(pl);
   const patrol = { i: 0, x: PATROL.route[0][0], z: PATROL.route[0][1], wait: 0, heading: 0, exposure: 0 };
+  // the Night Porter also gives a quest, so add him to the list of people you can talk to
+  {
+    const def = NPCS.find((n) => n.usePorter);
+    Object.defineProperty(def, 'x', { get: () => patrol.x });
+    Object.defineProperty(def, 'z', { get: () => patrol.z });
+    const tag = document.createElement('div');
+    tag.className = 'npc-tag';
+    tag.innerHTML = `<span class="mark"></span><span class="name">${def.name}</span>`;
+    const label = new CSS2DObject(tag);
+    label.position.set(0, 2.35, 0);
+    porter.root.add(label);
+    outdoorLabels.push(label);
+    npcs.push({ def, char: porter, tag, isPorter: true });
+  }
   // vision cone on the ground
   const coneGeo = new THREE.CircleGeometry(PATROL.viewRange, 32, Math.PI / 2 - PATROL.viewAngle / 2, PATROL.viewAngle);
   coneGeo.rotateX(-Math.PI / 2);
@@ -289,6 +304,7 @@ function start(assets) {
   const glow = glowTexture();
   const itemObjs = {};
   for (const [id, it] of Object.entries(ITEMS)) {
+    if (it.x === undefined) continue; // handed over by people, not found on the ground
     const g = new THREE.Group();
     const mesh = makeItemMesh(it.kind);
     mesh.rotation.set(-Math.PI / 2, 0, (it.x * 7.3) % 6.28); // lying on its side in the grass
@@ -460,6 +476,7 @@ function start(assets) {
     if (!L.view.inside && michael.near(state.x, state.z)) { confrontMichael(); return; }
     const npc = nearestNpc();
     if (!npc) {
+      if (sideq.talkOther()) return;
       const a = nearestAmbient();
       if (a) { say(a.def.name, a.def.lines); return; }
       const pat = animals.interact(state.x, state.z, isActive('keeper'));
@@ -470,6 +487,7 @@ function start(assets) {
     npc.char.playOnce('Interact');
 
     if (status === 'done') { say(npc.def.name, ['Thanks again for your help!']); return; }
+    if (['stash', 'letters', 'walk', 'night'].includes(q.type)) { sideq.talk(npc); return; }
 
     if (q.type === 'fetch') {
       if (!status) {
@@ -511,7 +529,8 @@ function start(assets) {
   }
 
   function itemAvailable(id) {
-    if (state.picked.includes(id)) return false;
+    if (state.picked.includes(id) || ITEMS[id].x === undefined) return false;
+    if (!sideq.itemReady(id)) return false;
     if (id === sneakNpc.quest.item) return isActive(sneakNpc.id); // the vape only appears once asked
     return true;
   }
@@ -532,6 +551,11 @@ function start(assets) {
   }
 
   const carryingVape = () => state.bag.includes(sneakNpc.quest.item);
+
+  const sideq = buildSideQuests({
+    state, outside, makeChar, say, toast, complete, renderHud, save, animals, michael, player, $, npcs, outdoorLabels,
+    setNight: (on) => setNight(on), facing: () => facing,
+  });
 
   const keeper = npcs.find((n) => n.def.quest.type === 'herd');
   if (state.quests[keeper.def.id] === 'done') animals.restoreHome(3);
@@ -596,6 +620,18 @@ function start(assets) {
 
 
   function updatePorter(dt) {
+    porter.update(dt);
+    if (sideq.nightActive) {
+      // waiting on the porch for the missing resident
+      [patrol.x, patrol.z] = L.houseToWorld(2.5, -11);
+      const [dx, dz] = L.houseToWorld(0, -1);
+      patrol.heading = Math.atan2(dx, dz);
+      porter.play('Idle');
+      porter.root.position.set(patrol.x, L.standHeight(patrol.x, patrol.z), patrol.z);
+      porter.root.rotation.y = patrol.heading;
+      cone.visible = false;
+      return;
+    }
     const route = PATROL.route;
     const [tx, tz] = route[(patrol.i + 1) % route.length];
     if (patrol.wait > 0) {
@@ -664,6 +700,7 @@ function start(assets) {
         if (q.type === 'timed') p.textContent = `Talk to ${n.name} to start the clock`;
         if (q.type === 'sneak') p.textContent = carryingVape() ? 'Reach the front door unseen' : 'Find the hidden vape';
         if (q.type === 'herd') p.textContent = `${state.alpacasHome || 0} of ${q.count} alpacas back in the paddock`;
+        if (['stash', 'letters', 'walk', 'night'].includes(q.type)) p.textContent = sideq.progress(q);
         li.appendChild(p);
       }
       log.appendChild(li);
@@ -816,9 +853,11 @@ function start(assets) {
     for (const { a, o } of lostLabels) o.visible = searching && !L.view.inside && a.lost && a.state !== 'follow' && Math.hypot(a.x - state.x, a.z - state.z) < 10; // only once you're close
     for (const n of npcs) {
       const d = Math.hypot(n.def.x - state.x, n.def.z - state.z);
-      const want = d < 6 ? Math.atan2(state.x - n.def.x, state.z - n.def.z) : n.def.facing;
-      n.char.root.rotation.y = turnTowards(n.char.root.rotation.y, want, dt * 3);
-      n.char.update(dt);
+      if (!n.isPorter) {
+        const want = d < 6 ? Math.atan2(state.x - n.def.x, state.z - n.def.z) : n.def.facing;
+        n.char.root.rotation.y = turnTowards(n.char.root.rotation.y, want, dt * 3);
+        n.char.update(dt);
+      }
       const s = state.quests[n.def.id];
       const q = n.def.quest;
       let mark = '';
@@ -832,7 +871,7 @@ function start(assets) {
       const d = Math.hypot(p.x - state.x, p.z - state.z);
       p.el.style.opacity = d > 12 && d < 110 ? 0.9 : 0;
     }
-    porterTag.style.opacity = carryingVape() ? 1 : 0;
+    porterTag.style.opacity = 0; // his name is shown on his quest tag
     for (const [id, o] of Object.entries(itemObjs)) {
       const show = itemAvailable(id);
       o.group.visible = show;
@@ -852,6 +891,8 @@ function start(assets) {
       $('action').classList.add('ready');
       return;
     }
+    const other = free ? sideq.promptText() : null;
+    if (other) { $('prompt').textContent = `${touch ? 'Tap Talk to' : 'Press E to'} ${other}`; $('prompt').hidden = false; $('action').classList.add('ready'); return; }
     const n = free ? nearestNpc() : null;
     const a = free && !n ? nearestAmbient() : null;
     const alpaca = free && !n && !a && animals.nearAlpaca(state.x, state.z);
@@ -877,12 +918,42 @@ function start(assets) {
     outside.visible = !inside;
     interior.group.visible = inside;
     for (const l of outdoorLabels) l.visible = !inside;
-    sun.intensity = inside ? 0 : 2.6;
-    sun.castShadow = !inside;
-    scene.environmentIntensity = inside ? 0.3 : 0.85;
-    scene.fog = inside ? null : fog;
+    applyLighting();
     if (inside) cam.dist = Math.min(cam.dist, 4.5);
     currentRoom = null;
+  }
+
+  // ----- day and night -----
+  let nightMode = false;
+  const dayFog = fog.color.clone(), nightFog = new THREE.Color('#0a1222');
+  const torch = new THREE.SpotLight('#ffe6b0', 0, 45, 0.45, 0.55, 1.2);
+  torch.position.set(0.25, 1.5, 0.2);
+  torch.target.position.set(0, 0.2, 8);
+  player.root.add(torch, torch.target);
+  const moon = new THREE.HemisphereLight('#6f88c0', '#10141c', 0);
+  scene.add(moon);
+  function applyLighting() {
+    const inside = L.view.inside;
+    sun.intensity = inside ? 0 : nightMode ? 0.12 : 2.6;
+    sun.color.set(nightMode ? '#9fb4ff' : '#fff1dc');
+    sun.castShadow = !inside && !nightMode;
+    scene.environmentIntensity = inside ? 0.3 : nightMode ? 0.06 : 0.85;
+    scene.backgroundIntensity = nightMode ? 0.06 : 1;
+    fog.color.copy(nightMode ? nightFog : dayFog);
+    fog.near = nightMode ? 15 : 160; fog.far = nightMode ? 220 : 2200;
+    scene.fog = inside ? null : fog;
+    moon.intensity = nightMode && !inside ? 0.35 : 0;
+    torch.intensity = nightMode && !inside ? 60 : 0;
+    document.body.classList.toggle('night', nightMode);
+  }
+  function setNight(on) {
+    nightMode = on;
+    $('fade').classList.add('on');
+    setTimeout(() => {
+      applyLighting();
+      $('fade').classList.remove('on');
+      if (on) toast('Night falls. Your torch is on.');
+    }, 400);
   }
   function moveThroughDoor(inside) {
     transitioning = true;
@@ -946,7 +1017,6 @@ function start(assets) {
     const t = frameTimer.getElapsed();
     updatePlayer(dt);
     player.update(dt);
-    porter.update(dt);
     updatePorter(dt);
     updateNpcs(dt, t);
     for (const a of ambient) a.char.update(dt);
@@ -958,6 +1028,7 @@ function start(assets) {
     if (fighting) { $('will').style.width = `${battleHud.willpower}%`; $('hold').style.width = `${battleHud.hold}%`; }
     if (!L.view.inside) animals.update(dt, t, { x: state.x, z: state.z, heading: facing });
     updateQuests(dt, realDt);
+    sideq.update(dt, realDt, !dlg.hidden);
     updateDoors();
     updateCamera(dt);
     updatePrompt();
@@ -989,7 +1060,7 @@ function start(assets) {
     ]);
   }
 
-  window.__game = { michael, battleHud, state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
+  window.__game = { sideq, michael, battleHud, state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
 }
 
 // ---------- item models ----------
@@ -1029,6 +1100,14 @@ function makeItemMesh(kind) {
     led.position.y = -0.09;
     g.add(body, tip, led);
     g.scale.setScalar(2);
+  } else if (kind === 'flask') {
+    const steel = new THREE.MeshStandardMaterial({ color: '#c8ccd0', metalness: 0.9, roughness: 0.25 });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.05), steel));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 12).translate(0, 0.135, 0), steel));
+    g.scale.setScalar(1.6);
+  } else if (kind === 'card') {
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.004), new THREE.MeshStandardMaterial({ color: '#f0d040', roughness: 0.6 })));
+    g.scale.setScalar(1.8);
   } else if (kind === 'cigarettes') {
     const c = document.createElement('canvas');
     c.width = 128; c.height = 160;
