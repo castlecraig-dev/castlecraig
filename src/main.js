@@ -9,8 +9,9 @@ import * as L from './layout.js';
 import { loadAssets, analyseSky } from './assets.js';
 import { buildWorld } from './world.js';
 import { buildInterior } from './interior.js';
+import { buildAnimals } from './animals.js';
 import { Character, turnTowards } from './characters.js';
-import { ITEMS, NPCS, PATROL, PLACES, CASTLE_DOOR } from './quests.js';
+import { ITEMS, NPCS, PATROL, PLACES, AMBIENT, START } from './quests.js';
 import { glowTexture } from './textures.js';
 
 const $ = (id) => document.getElementById(id);
@@ -36,7 +37,7 @@ container.appendChild(labels.domElement);
 
 const scene = new THREE.Scene();
 const fovFor = (aspect) => (aspect < 1 ? 72 : 55); // wider view on portrait phones
-const camera = new THREE.PerspectiveCamera(fovFor(innerWidth / innerHeight), innerWidth / innerHeight, 0.1, 600);
+const camera = new THREE.PerspectiveCamera(fovFor(innerWidth / innerHeight), innerWidth / innerHeight, 0.1, 6000);
 
 const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
 const composer = new EffectComposer(renderer, rt);
@@ -55,8 +56,8 @@ addEventListener('resize', () => {
 });
 
 // ---------- state ----------
-const SAVE_KEY = 'castle-craig-quest-3d-v2';
-const fresh = () => ({ x: 0, z: 4, yaw: 0, picked: [], bag: [], quests: {}, finished: false, inside: false });
+const SAVE_KEY = 'castle-craig-quest-3d-v3'; // v3: the real-world map
+const fresh = () => ({ x: START.at[0], z: START.at[1], yaw: START.facing + Math.PI, picked: [], bag: [], quests: {}, finished: false, inside: false });
 let state = fresh();
 try {
   const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
@@ -77,6 +78,10 @@ loadAssets(renderer, (p) => { bar.style.width = `${Math.round(p * 100)}%`; })
   });
 
 function start(assets) {
+  // ----- the real-world map -----
+  assets.map.meta.splatTexture = assets.map.splatTex;
+  L.initGeo(assets.map);
+
   // ----- sky, sun and fog from the HDRI -----
   const sky = assets.sky;
   sky.mapping = THREE.EquirectangularReflectionMapping;
@@ -85,7 +90,7 @@ function start(assets) {
   scene.background = sky;
   scene.environment = sky;
   scene.environmentIntensity = 0.85;
-  scene.fog = new THREE.Fog(horizon.clone().multiplyScalar(0.9), 90, 300);
+  scene.fog = new THREE.Fog(horizon.clone().multiplyScalar(0.9), 160, 2200);
   const fog = scene.fog;
 
   const sun = new THREE.DirectionalLight('#fff1dc', 2.6);
@@ -102,6 +107,7 @@ function start(assets) {
   scene.add(outside);
   const world = buildWorld(outside, { quality, assets });
   const interior = buildInterior(scene, { assets });
+  const animals = buildAnimals(outside, { quality });
   const outdoorLabels = [];
 
   // ----- characters -----
@@ -109,8 +115,14 @@ function start(assets) {
   scene.add(player.root);
   let facing = state.yaw + Math.PI;
 
+  const usedModels = new Set();
+  const makeChar = (model, tint) => {
+    const c = new Character(assets.chars[model], { height: 1.8, tint: tint || null, clone: usedModels.has(model) });
+    usedModels.add(model);
+    return c;
+  };
   const npcs = NPCS.map((n) => {
-    const c = new Character(assets.chars[n.model], { height: 1.8, tint: n.tint || null });
+    const c = makeChar(n.model, n.tint);
     c.root.position.set(n.x, L.standHeight(n.x, n.z), n.z);
     c.root.rotation.y = n.facing;
     outside.add(c.root);
@@ -125,8 +137,19 @@ function start(assets) {
     return { def: n, char: c, tag };
   });
 
+  // residents chatting at the smoking shelter
+  const ambient = AMBIENT.map((a) => {
+    const c = makeChar(a.model, a.tint);
+    c.root.position.set(a.x, L.standHeight(a.x, a.z) + (a.sit ? 0.42 : 0), a.z); // sitting on the bench
+    c.root.rotation.y = a.facing;
+    if (a.sit) c.play('Sit_Floor_Idle', 0);
+    outside.add(c.root);
+    L.addCircle(a.x, a.z, 0.4);
+    return { def: a, char: c };
+  });
+
   // The Night Porter on patrol
-  const porter = new Character(assets.chars[PATROL.model], { height: 1.8, clone: true, tint: '#8c96c8' });
+  const porter = makeChar(PATROL.model, '#8c96c8');
   outside.add(porter.root);
   const porterTag = document.createElement('div');
   porterTag.className = 'npc-tag porter';
@@ -151,7 +174,7 @@ function start(assets) {
     d.className = 'place';
     d.textContent = p.name;
     const o = new CSS2DObject(d);
-    o.position.set(p.x, p.y, p.z);
+    o.position.set(p.x, L.groundHeight(p.x, p.z) + p.h, p.z);
     outside.add(o);
     outdoorLabels.push(o);
     p.el = d;
@@ -296,10 +319,18 @@ function start(assets) {
     renderHud();
   }
 
+  const nearestAmbient = () => ambient.find((a) => Math.hypot(a.def.x - state.x, a.def.z - state.z) < 2.6);
+
   function act() {
     if (!dlg.hidden) { next(); return; }
     const npc = nearestNpc();
-    if (!npc) return;
+    if (!npc) {
+      const a = nearestAmbient();
+      if (a) { say(a.def.name, a.def.lines); return; }
+      const pat = animals.interact(state.x, state.z);
+      if (pat) toast(pat, 'good');
+      return;
+    }
     const q = npc.def.quest, id = npc.def.id, status = state.quests[id];
     npc.char.playOnce('Interact');
 
@@ -403,14 +434,8 @@ function start(assets) {
   }
 
   // ---------- the Night Porter ----------
-  const losBlocked = (x0, z0, x1, z1) => {
-    const steps = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.5);
-    for (let i = 1; i < steps; i++) {
-      const x = x0 + ((x1 - x0) * i) / steps, z = z0 + ((z1 - z0) * i) / steps;
-      for (const b of L.colliders.boxes) if (x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return true;
-    }
-    return false;
-  };
+  const losBlocked = (x0, z0, x1, z1) => L.losBlocked(x0, z0, x1, z1);
+
 
   function updatePorter(dt) {
     const route = PATROL.route;
@@ -488,33 +513,32 @@ function start(assets) {
   renderHud();
 
   const mini = $('minimap'), mctx = mini.getContext('2d');
-  const MW = L.BOUNDS.maxX - L.BOUNDS.minX, MH = L.BOUNDS.maxZ - L.BOUNDS.minZ;
+  // a 1 m/pixel map of the estate drawn from the real map data
+  const SP = L.geo.meta.splat;
   const mapBg = document.createElement('canvas');
   {
-    const S = 2; // sample every 2 m
-    mapBg.width = MW / S; mapBg.height = MH / S;
-    const c = mapBg.getContext('2d'), img = c.createImageData(mapBg.width, mapBg.height);
-    for (let j = 0; j < mapBg.height; j++) for (let i = 0; i < mapBg.width; i++) {
-      const x = L.BOUNDS.minX + i * S, z = L.BOUNDS.minZ + j * S, h = L.groundHeight(x, z);
-      let col = [86, 128, 64];
-      if (z > 48) col = [62, 98, 50];
-      if (L.pathDist(x, z) < L.PATH_HALF) col = [196, 180, 140];
-      if (h < L.WATER_Y + 0.12 && !L.onBridge(x, z)) col = [64, 112, 150];
-      if (L.onBridge(x, z)) col = [140, 105, 70];
-      for (const b of [L.CASTLE, L.DINING_HALL]) if (L.rectDist(x, z, b) === 0) col = [150, 144, 136];
-      if (L.rectDist(x, z, L.GARDEN) === 0) col = [70, 120, 60];
-      const k = (j * mapBg.width + i) * 4;
-      img.data.set([...col, 255], k);
+    mapBg.width = SP.w; mapBg.height = SP.h;
+    const c = mapBg.getContext('2d'), img = c.createImageData(SP.w, SP.h), d = L.geo.splat;
+    for (let k = 0; k < SP.w * SP.h; k++) {
+      const r = d[k * 4] / 255, g = d[k * 4 + 1] / 255, b = d[k * 4 + 2] / 255;
+      const col = [118 - 40 * g, 158 - 40 * g, 86 - 26 * g];
+      for (let ch = 0; ch < 3; ch++) col[ch] = col[ch] * (1 - r) + [214, 198, 160][ch] * r;
+      img.data.set([col[0], col[1], col[2], 255], k * 4);
     }
     c.putImageData(img, 0, 0);
+    const P = ([x, z]) => [x - SP.minX, z - SP.minZ];
+    const fill = (pts, color) => { c.fillStyle = color; c.beginPath(); pts.forEach((p, i) => c[i ? 'lineTo' : 'moveTo'](...P(p))); c.closePath(); c.fill(); };
+    for (const lk of L.geo.meta.lakes) fill(lk.pts, '#4a7fa8');
+    for (const b of L.geo.meta.buildings) fill(b.pts, b.house ? '#c9b48a' : '#8e8478');
   }
+  const VIEW = 260; // metres across the minimap
   function drawMinimap() {
-    const w = mini.width, h = mini.height;
-    const sx = w / MW, sz = h / MH;
-    const mx = (x) => (x - L.BOUNDS.minX) * sx, mz = (z) => (z - L.BOUNDS.minZ) * sz;
     if (L.view.inside) { drawInteriorMap(); return; }
-    mctx.drawImage(mapBg, 0, 0, w, h);
-    const dot = (x, z, r, color) => { mctx.fillStyle = color; mctx.beginPath(); mctx.arc(mx(x), mz(z), r, 0, Math.PI * 2); mctx.fill(); };
+    const w = mini.width, h = mini.height, k = w / VIEW;
+    mctx.fillStyle = '#4c6a3c'; mctx.fillRect(0, 0, w, h);
+    mctx.drawImage(mapBg, state.x - SP.minX - VIEW / 2, state.z - SP.minZ - (VIEW * h) / w / 2, VIEW, (VIEW * h) / w, 0, 0, w, h);
+    const mx = (x) => THREE.MathUtils.clamp(w / 2 + (x - state.x) * k, 4, w - 4), mz = (z) => THREE.MathUtils.clamp(h / 2 + (z - state.z) * k, 4, h - 4);
+    const dot = (x, z, r, color) => { mctx.fillStyle = color; mctx.strokeStyle = 'rgba(0,0,0,0.6)'; mctx.beginPath(); mctx.arc(mx(x), mz(z), r, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); };
     for (const n of npcs) {
       const s = state.quests[n.def.id];
       dot(n.def.x, n.def.z, 3.5, s === 'done' ? '#9ab' : '#ffd24a');
@@ -528,7 +552,7 @@ function start(assets) {
     if (carryingVape()) dot(patrol.x, patrol.z, 3.5, '#ff4a3a');
     // player arrow
     mctx.save();
-    mctx.translate(mx(state.x), mz(state.z));
+    mctx.translate(w / 2, h / 2);
     mctx.rotate(-facing + Math.PI);
     mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 1;
     mctx.beginPath(); mctx.moveTo(0, -6); mctx.lineTo(4.5, 5); mctx.lineTo(-4.5, 5); mctx.closePath(); mctx.fill(); mctx.stroke();
@@ -622,13 +646,20 @@ function start(assets) {
   }
 
   function updatePrompt() {
-    const n = dlg.hidden ? nearestNpc() : null;
+    const free = dlg.hidden && !L.view.inside;
+    const n = free ? nearestNpc() : null;
+    const a = free && !n ? nearestAmbient() : null;
+    const alpaca = free && !n && !a && animals.nearAlpaca(state.x, state.z);
     const p = $('prompt');
-    if (n) {
-      p.textContent = touch ? `Tap Talk to speak to ${n.def.name}` : `Press E to talk to ${n.def.name}`;
+    const verb = touch ? 'Tap Talk to' : 'Press E to';
+    if (n || a) {
+      p.textContent = `${verb} talk to ${(n || a).def.name}`;
+      p.hidden = false;
+    } else if (alpaca) {
+      p.textContent = `${verb} pat the alpaca`;
       p.hidden = false;
     } else p.hidden = true;
-    $('action').classList.toggle('ready', !!n || !dlg.hidden);
+    $('action').classList.toggle('ready', !!(n || a || alpaca) || !dlg.hidden);
   }
 
   // ---------- going in and out of the castle ----------
@@ -654,7 +685,11 @@ function start(assets) {
     setTimeout(() => {
       setInside(inside);
       if (inside) { state.x = IN.x; state.z = IN.z + 2.6; facing = Math.PI; cam.yaw = 0; }
-      else { state.x = 0; state.z = -10.6; facing = 0; cam.yaw = Math.PI; }
+      else {
+        [state.x, state.z] = L.houseToWorld(0, -7.5);
+        const [dx, dz] = L.houseToWorld(0, -1);
+        facing = Math.atan2(dx, dz); cam.yaw = facing + Math.PI;
+      }
       updatePlayer(0); updateCamera(1); camera.position.copy(camPos);
       $('fade').classList.remove('on');
       save();
@@ -663,7 +698,8 @@ function start(assets) {
   }
   function updateDoors() {
     if (transitioning || !dlg.hidden) return;
-    if (!L.view.inside && Math.abs(state.x) < 1.3 && state.z < -12.45 && state.z > -14) moveThroughDoor(true);
+    const [hx, hz] = L.worldToHouse(state.x, state.z);
+    if (!L.view.inside && Math.abs(hx) < 1.2 && hz > -3.05 && hz < -2) moveThroughDoor(true);
     else if (L.view.inside && state.z - IN.z > 5.35) moveThroughDoor(false);
     if (L.view.inside) {
       const lx = state.x - IN.x, lz = state.z - IN.z;
@@ -708,11 +744,13 @@ function start(assets) {
     porter.update(dt);
     updatePorter(dt);
     updateNpcs(dt, t);
+    for (const a of ambient) a.char.update(dt);
+    if (!L.view.inside) animals.update(dt, t, state);
     updateQuests(dt, realDt);
     updateDoors();
     updateCamera(dt);
     updatePrompt();
-    world.update(t);
+    world.update(t, state);
     interior.update(t);
     ring.rotation.z = t;
     composer.render();
@@ -780,6 +818,19 @@ function makeItemMesh(kind) {
     led.position.y = -0.09;
     g.add(body, tip, led);
     g.scale.setScalar(2);
+  } else if (kind === 'cigarettes') {
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 160;
+    const x = c.getContext('2d');
+    x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, 128, 160);
+    x.fillStyle = '#b8282e'; x.fillRect(0, 0, 128, 52);
+    x.fillStyle = '#222'; x.font = 'bold 15px Arial'; x.textAlign = 'center';
+    x.fillText('SMOKING', 64, 92); x.fillText('KILLS', 64, 112);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.08), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }));
+    g.add(pack);
+    g.scale.setScalar(1.6);
   }
   g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   return g;

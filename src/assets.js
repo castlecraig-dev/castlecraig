@@ -31,7 +31,29 @@ export async function loadAssets(renderer, onProgress) {
   const kk = (n) => model(`models/kaykit/${n}.gltf`);
   const ph = (n) => model(`models/polyhaven/${n}/${n}_1k.gltf`);
 
+  // real-world map data (scripts/build-map.py)
+  const fileLoader = new THREE.FileLoader(manager).setResponseType('arraybuffer');
+  const bin = (name) => fileLoader.loadAsync(`${BASE}map/${name}`).then((b) => new Float32Array(b));
+  const mapData = settle({
+    meta: new THREE.FileLoader(manager).setResponseType('json').loadAsync(`${BASE}map/map.json`),
+    H: bin('height.bin'),
+    far: bin('far.bin'),
+    splatTex: texLoader.loadAsync(`${BASE}map/splat.png`),
+  }).then((m) => {
+    // read the ground mask on the CPU too, for placing trees and testing the ground
+    const img = m.splatTex.image;
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    m.splat = ctx.getImageData(0, 0, img.width, img.height).data;
+    m.splatTex.flipY = false;
+    m.splatTex.needsUpdate = true;
+    return m;
+  });
+
   return settle({
+    map: mapData,
     sky: hdr.loadAsync(`${BASE}sky/sky_2k.hdr`),
     tex: settle({
       stone: pbr('castle_wall_slates'),

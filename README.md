@@ -3,6 +3,10 @@
 A 3D browser game set in the grounds of Castle Craig ([castlecraig.co.uk](https://www.castlecraig.co.uk)).
 Roam the estate, talk to the people you meet and complete their quests.
 
+The map is built from real-world data: the buildings, drives, woods, walls, hedges and lake come from
+OpenStreetMap, and the ground heights and surrounding hills from open elevation data. Alpacas graze in a
+paddock north of the house, rabbits hop about the meadows and birds wheel over the woods.
+
 Built with [Three.js](https://threejs.org) and [Vite](https://vite.dev), using free CC0 assets from
 [Poly Haven](https://polyhaven.com) and [KayKit](https://kaylousberg.com) (see [CREDITS.md](CREDITS.md)).
 
@@ -35,12 +39,13 @@ Progress saves automatically in the browser. Use **Restart game** in the quest p
 
 | Quest | Given by | What to do |
 | --- | --- | --- |
-| Find the empty vodka bottle | The Groundskeeper (main drive) | Search the woods south of the river and bring the bottle back. |
-| Find the bag of drugs | The Nurse (south of the pond) | Search the edge of the pond and hand the bag in. |
-| Dining hall dash | The Cook (by the kitchen door) | Run to the dining hall and back to the castle door in 28 seconds. |
-| Sneak a vape into the castle | The Resident (walled garden) | Collect the vape behind the walled garden and reach the castle door without the Night Porter seeing you. If you're spotted, the vape goes back to its hiding place. |
+| Find the empty vodka bottle | The Groundskeeper (north drive) | Search the woods south-west of the clinic gardens and bring the bottle back. |
+| Find the bag of drugs | The Nurse (by the lake) | Search the lake's edge and hand the bag in. |
+| Dining hall dash | The Cook (back of the house) | Run to the dining hall in the Recovery Gardens and back to the front door in 90 seconds. |
+| Sneak a vape into the house | The Resident (walled garden) | Collect the vape just north of the walled garden and reach the front door without the Night Porter seeing you. If you're spotted, the vape goes back to its hiding place. |
+| Find the pack of cigarettes | A Shelter Regular (smoking shelter) | Find the pack dropped near the Old Watermill and bring it back to the shelter. |
 
-Walk through the castle's front door to go inside. The interior has the Front Hall, the Quiet Room and the
+Walk through the house's front door to go inside. The interior has the Front Hall, the Quiet Room and the
 staircase, modelled on photos of the real rooms. Walk back out through the front door to return to the grounds.
 
 Items for active quests have a golden beam of light above them and appear as orange dots on the minimap.
@@ -64,13 +69,15 @@ by default (fewer grass blades, smaller shadow maps, no ferns).
 | --- | --- |
 | `src/main.js` | Renderer, lighting, camera, controls, quest logic, the Night Porter's patrol and the HUD |
 | `src/interior.js` | The castle interior: Front Hall, Quiet Room and staircase |
-| `src/world.js` | Builds the estate: terrain, water, castle, walled garden, dining hall, bridge, trees, grass |
-| `src/layout.js` | Positions of everything, ground height, paths and collision |
+| `src/world.js` | Builds the estate from the map data: terrain, hills, buildings, the house, walls, hedges, trees, grass, the lake and the smoking shelter |
+| `src/animals.js` | Alpacas, rabbits, garden birds and rooks |
+| `src/layout.js` | Ground height, the ground mask and collision, read from the map data |
 | `src/quests.js` | Characters, quest text, item positions and the patrol route |
 | `src/characters.js` | Animated characters (idle, walk, run, cheer, pick up) |
 | `src/assets.js` | Loads the vendor assets and analyses the sky to place the sun |
 | `src/textures.js` | Small procedural textures (hedge leaves, water ripples, item glow) |
-| `public/assets/` | Vendor models, textures and the HDRI sky |
+| `public/assets/` | Vendor models, textures, the HDRI sky and the generated map (`map/`) |
+| `scripts/build-map.py` | Rebuilds the map from OpenStreetMap and elevation data (`python3 scripts/build-map.py`, needs Pillow) |
 
 ### Editing quests
 
@@ -80,8 +87,8 @@ Quest text, item positions and characters are all in `src/quests.js`. There are 
 - `timed`: reach each of the `checkpoints` in order within `timeLimit` seconds
 - `sneak`: carry the `item` to the `target` without the patrol seeing you
 
-Positions are in metres. The map runs roughly from x −90 to 90 (west to east) and z −70 to 80 (north to south).
-The layout is a stylised version of the grounds, not an accurate plan.
+Positions are in metres from the main house: +x is east and +z is south. The walkable area runs from about
+x −300 to 330 and z −330 to 560.
 
 ## Screenshots
 

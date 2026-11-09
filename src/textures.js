@@ -178,3 +178,17 @@ export function greenTiles() {
     }
   });
 }
+
+// A painted wooden sign.
+export function signTexture(text) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 150;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2f4a3a'; g.fillRect(0, 0, 512, 150);
+  g.strokeStyle = '#d8c79a'; g.lineWidth = 8; g.strokeRect(8, 8, 496, 134);
+  g.fillStyle = '#efe4c4'; g.font = 'bold 58px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 256, 78);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}

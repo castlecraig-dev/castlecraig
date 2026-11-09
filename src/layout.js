@@ -1,98 +1,163 @@
-// Shared layout of the estate: positions, ground height and collision.
-// Units are metres. +x is east, +z is south.
+// Layout of the Castle Craig estate, built from real-world map data
+// (OpenStreetMap and open elevation data; see scripts/build-map.py).
+// Units are metres. +x is east, +z is south, and the origin is the main house.
 
-export const BOUNDS = { minX: -90, maxX: 90, minZ: -70, maxZ: 80 };
-export const WATER_Y = -0.4;
-export const FLAT_Y = 0.2;
+export const BOUNDS = { minX: -300, maxX: 330, minZ: -330, maxZ: 560 }; // where the player can walk
 
-export const CASTLE = { x: 0, z: -24, w: 26, d: 16 };
-export const GARDEN = { x: -50, z: -26, w: 30, d: 26 };
-export const POND = { x: 50, z: -28, rx: 16, rz: 11 };
-export const DINING_HALL = { x: 70, z: -4, w: 14, d: 9 };
-export const RIVER_HALF = 4.5;
-export const riverZ = (x) => 38 + 4 * Math.sin(x / 18) + 1.5 * Math.sin(x / 7 + 1);
-export const BRIDGE = { x: 0, z: riverZ(0), halfW: 2.2, halfL: 8, deckY: 0.55 };
-
-export const PATH_HALF = 1.8;
-export const PATHS = [
-  [[0, -14], [0, 58]],     // castle door, south over the bridge into the woods
-  [[0, 58], [-38, 64]],    // woods, west branch
-  [[0, 58], [34, 56]],     // woods, east branch
-  [[-82, 10], [82, 10]],   // the main drive
-  [[-50, -12], [-50, 10]], // to the walled garden
-  [[40, -15], [40, 10]],   // to the pond
-  [[70, 0.5], [70, 10]],   // to the dining hall
-  [[13, -20], [22, -20]],  // kitchen door
-  [[22, -20], [22, 10]],
-];
-
-// Raised vegetable beds in the walled garden (x/z centre, width, depth)
-export const BEDS = [];
-for (const dx of [-8, 8]) for (const dz of [-7, -1.5, 4]) {
-  BEDS.push({ x: GARDEN.x + dx, z: GARDEN.z + dz, w: 8, d: 2 });
-}
-
-// ---------- helpers ----------
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-export function rectDist(x, z, r) {
-  const dx = Math.max(Math.abs(x - r.x) - r.w / 2, 0);
-  const dz = Math.max(Math.abs(z - r.z) - r.d / 2, 0);
-  return Math.hypot(dx, dz);
-}
+// ---------- the main house's own frame ----------
+// The real house is turned about 8 degrees from north. In house coordinates its
+// front (entrance) faces -z, onto the forecourt between the two wings.
+export const HOUSE = { angle: -0.138352 };
+const HC = Math.cos(HOUSE.angle), HS = Math.sin(HOUSE.angle);
+export const houseToWorld = (lx, lz) => [lx * HC - lz * HS, lx * HS + lz * HC];
+export const worldToHouse = (x, z) => [x * HC + z * HS, -x * HS + z * HC];
+export const FRONT_DOOR = { local: [0, -2.3] };
+[FRONT_DOOR.x, FRONT_DOOR.z] = houseToWorld(0, -2.3);
 
-function segDist(px, pz, a, b) {
-  const vx = b[0] - a[0], vz = b[1] - a[1];
-  const t = clamp(((px - a[0]) * vx + (pz - a[1]) * vz) / (vx * vx + vz * vz), 0, 1);
-  return Math.hypot(px - (a[0] + vx * t), pz - (a[1] + vz * t));
+// ---------- geometry helpers ----------
+export function pointInPoly(x, z, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j];
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
 }
-
-export function pathDist(x, z) {
+export function segDist(px, pz, a, b) {
+  const vx = b[0] - a[0], vz = b[1] - a[1], L = vx * vx + vz * vz;
+  const t = L === 0 ? 0 : clamp(((px - a[0]) * vx + (pz - a[1]) * vz) / L, 0, 1);
+  return Math.hypot(px - a[0] - vx * t, pz - a[1] - vz * t);
+}
+export function polyEdgeDist(x, z, poly) {
   let d = Infinity;
-  for (const [a, b] of PATHS) d = Math.min(d, segDist(x, z, a, b));
+  for (let i = 0; i < poly.length; i++) d = Math.min(d, segDist(x, z, poly[i], poly[(i + 1) % poly.length]));
   return d;
 }
+export const centroid = (poly) => [poly.reduce((s, p) => s + p[0], 0) / poly.length, poly.reduce((s, p) => s + p[1], 0) / poly.length];
 
-export const pondDist = (x, z) => Math.hypot((x - POND.x) / POND.rx, (z - POND.z) / POND.rz);
-export const riverDist = (x, z) => Math.abs(z - riverZ(x));
+// ---------- map data ----------
+export const geo = { meta: null, H: null, far: null, splat: null };
 
-export function onBridge(x, z) {
-  return Math.abs(x - BRIDGE.x) < BRIDGE.halfW && Math.abs(z - BRIDGE.z) < BRIDGE.halfL;
+export function initGeo({ meta, H, far, splat }) {
+  Object.assign(geo, { meta, H, far, splat });
+  for (const b of meta.buildings) addPoly(b.pts, b.house ? 16 : 7, b.ground);
+  for (const lk of meta.lakes) addItem({ type: 'water', pts: lk.pts }, bboxOf(lk.pts));
 }
 
-// Natural ground height before buildings and the bridge.
+function bilinear(arr, nx, nz, fx, fz) {
+  const i = clamp(Math.floor(fx), 0, nx - 2), j = clamp(Math.floor(fz), 0, nz - 2);
+  const u = clamp(fx - i, 0, 1), v = clamp(fz - j, 0, 1);
+  const a = arr[j * nx + i], b = arr[j * nx + i + 1], c = arr[(j + 1) * nx + i], d = arr[(j + 1) * nx + i + 1];
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+
+// Real ground height (metres relative to the house), from the elevation data.
 export function groundHeight(x, z) {
-  let h = 1.25
-    + 0.9 * Math.sin(x * 0.045 + 1.3) * Math.cos(z * 0.05)
-    + 0.5 * Math.sin(x * 0.11 + z * 0.07)
-    + 0.25 * Math.sin(x * 0.23 - z * 0.19);
+  const h = geo.meta.height;
+  const fx = (x - h.minX) / h.cell, fz = (z - h.minZ) / h.cell;
+  if (fx >= 0 && fz >= 0 && fx <= h.nx - 1 && fz <= h.nz - 1) return bilinear(geo.H, h.nx, h.nz, fx, fz);
+  const f = geo.meta.far;
+  return bilinear(geo.far, f.n, f.n, (x + f.half) / f.cell, (z + f.half) / f.cell);
+}
 
-  // Level the ground around buildings and paths
-  let f = 1;
-  f = Math.min(f, smooth(2, 10, rectDist(x, z, CASTLE)));
-  f = Math.min(f, smooth(1, 6, rectDist(x, z, GARDEN)));
-  f = Math.min(f, smooth(1, 6, rectDist(x, z, DINING_HALL)));
-  f = Math.min(f, smooth(PATH_HALF, PATH_HALF + 5, pathDist(x, z)));
-  h = FLAT_Y + (h - FLAT_Y) * f;
+// Ground mask at a point: [road, wood, mud], each 0..1, at 1 m resolution.
+// Mud also covers the lake and building plots.
+const _s = [0, 0, 0];
+export function splatAt(x, z) {
+  const s = geo.meta.splat, i = Math.floor(x - s.minX), j = Math.floor(z - s.minZ);
+  if (i < 0 || j < 0 || i >= s.w || j >= s.h) { _s[0] = 0; _s[1] = 0.6; _s[2] = 0; return _s; }
+  const k = (j * s.w + i) * 4, d = geo.splat;
+  _s[0] = d[k] / 255; _s[1] = d[k + 1] / 255; _s[2] = d[k + 2] / 255;
+  return _s;
+}
+export const onRoad = (x, z) => splatAt(x, z)[0] > 0.4;
 
-  // Rolling Border hills beyond the grounds
-  const ex = Math.max(0, Math.abs(x) - 86);
-  const ez = Math.max(0, z < 0 ? -z - 66 : z - 76);
-  const e = Math.hypot(ex, ez);
-  h += e * e * 0.03 + e * 0.3 * (1 + 0.6 * Math.sin(x * 0.06 + z * 0.045));
+// ---------- collision (spatial hash) ----------
+const CELL = 16;
+const grid = new Map();
+const key = (i, j) => i * 100003 + j;
+function bboxOf(pts, pad = 0) {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const [x, z] of pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+  return { minX: minX - pad, maxX: maxX + pad, minZ: minZ - pad, maxZ: maxZ + pad };
+}
+function addItem(item, bb) {
+  const pad = 1.2; // covers the player's radius
+  for (let i = Math.floor((bb.minX - pad) / CELL); i <= Math.floor((bb.maxX + pad) / CELL); i++) {
+    for (let j = Math.floor((bb.minZ - pad) / CELL); j <= Math.floor((bb.maxZ + pad) / CELL); j++) {
+      const k = key(i, j);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push(item);
+    }
+  }
+}
+const cellItems = (x, z) => grid.get(key(Math.floor(x / CELL), Math.floor(z / CELL))) || [];
 
-  // Carve the river and the pond
-  h = lerp(h, -1.8, 1 - smooth(RIVER_HALF - 1.5, RIVER_HALF + 2.5, riverDist(x, z)));
-  h = lerp(h, -1.8, 1 - smooth(0.75, 1.15, pondDist(x, z)));
-  return h;
+// h is how tall an obstacle is above the ground, used to keep the camera out of it.
+export const addPoly = (pts, h = 3, base = null) => addItem({ type: 'poly', pts, h, base }, bboxOf(pts));
+export const addSeg = (a, b, half, h = 1) => addItem({ type: 'seg', a, b, half, h }, bboxOf([a, b], half));
+export const addCircle = (x, z, r, h = 1) => addItem({ type: 'circle', x, z, r, h }, { minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r });
+// Tree canopies: don't block walking, but keep the camera out of them.
+export const addFoliage = (x, z, r, top) => addItem({ type: 'foliage', x, z, r, h: top, low: 2.2 }, { minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r });
+export function addBox(x, z, w, d, h = 1, ry = 0) {
+  const c = Math.cos(ry), s = Math.sin(ry);
+  const pts = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([a, b]) => [x + a * c + b * s, z - a * s + b * c]);
+  addPoly(pts, h);
+}
+
+function hits(item, x, z, r) {
+  switch (item.type) {
+    case 'foliage': return false;
+    case 'poly': return pointInPoly(x, z, item.pts) || polyEdgeDist(x, z, item.pts) < r;
+    case 'water': return pointInPoly(x, z, item.pts);
+    case 'seg': return segDist(x, z, item.a, item.b) < r + item.half;
+    default: return (x - item.x) ** 2 + (z - item.z) ** 2 < (r + item.r) ** 2;
+  }
+}
+
+export const isWater = (x, z) => cellItems(x, z).some((it) => it.type === 'water' && pointInPoly(x, z, it.pts));
+
+export function blocked(x, z, r = 0.4) {
+  if (view.inside) return blockedInside(x, z, r);
+  if (x < BOUNDS.minX || x > BOUNDS.maxX || z < BOUNDS.minZ || z > BOUNDS.maxZ) return true;
+  for (const it of cellItems(x, z)) if (hits(it, x, z, r)) return true;
+  return false;
+}
+
+// True if the point (x, y, z) is inside something solid (for the camera).
+export function solidAt(x, y, z) {
+  if (view.inside) return solidInside(x, y, z);
+  const g = groundHeight(x, z);
+  if (y < g + 0.3) return true;
+  for (const it of cellItems(x, z)) {
+    if (it.type === 'water' || y > g + it.h) continue;
+    if (it.type === 'foliage') { if (y > g + it.low && (x - it.x) ** 2 + (z - it.z) ** 2 < it.r * it.r) return true; continue; }
+    if (it.type === 'poly' ? pointInPoly(x, z, it.pts) : hits(it, x, z, 0)) return true;
+  }
+  return false;
+}
+
+// Line of sight at eye height: blocked by buildings and high walls.
+export function losBlocked(x0, z0, x1, z1) {
+  const steps = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.7);
+  for (let i = 1; i < steps; i++) {
+    const x = x0 + ((x1 - x0) * i) / steps, z = z0 + ((z1 - z0) * i) / steps;
+    for (const it of cellItems(x, z)) {
+      if (it.h < 1.7) continue;
+      if (it.type === 'poly' ? pointInPoly(x, z, it.pts) : it.type === 'seg' && segDist(x, z, it.a, it.b) < it.half) return true;
+    }
+  }
+  return false;
 }
 
 // ---------- the castle interior ----------
 // The interior is built well away from the grounds so the two never overlap.
 // Walking through the castle's front door moves the player there.
-export const INTERIOR = { x: 0, z: -400 };
+export const INTERIOR = { x: 6000, z: 6000 };
 export const view = { inside: false };
 
 // Walkable floor areas in interior-local metres. ceil is the ceiling height.
@@ -143,39 +208,7 @@ function solidInside(x, y, z) {
 // Height a character stands at.
 export function standHeight(x, z) {
   if (view.inside) return interiorFloor(x - INTERIOR.x, z - INTERIOR.z);
-  const g = groundHeight(x, z);
-  return onBridge(x, z) ? Math.max(g, BRIDGE.deckY) : g;
-}
-
-export const isWater = (x, z) => !onBridge(x, z) && groundHeight(x, z) < WATER_Y + 0.12;
-
-// ---------- collision ----------
-export const colliders = { boxes: [], circles: [] };
-// h is the obstacle's height, used to stop the camera passing through buildings.
-export const addBox = (x, z, w, d, h = 1) => colliders.boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, h });
-export const addCircle = (x, z, r, h = 1) => colliders.circles.push({ x, z, r, h });
-
-// True if the point (x, y, z) is inside something solid and tall enough.
-export function solidAt(x, y, z) {
-  if (view.inside) return solidInside(x, y, z);
-  if (y < groundHeight(x, z) + 0.3) return true;
-  for (const b of colliders.boxes) if (y < FLAT_Y + b.h && x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return true;
-  for (const c of colliders.circles) if (y < FLAT_Y + c.h && (x - c.x) ** 2 + (z - c.z) ** 2 < c.r * c.r) return true;
-  return false;
-}
-
-export function blocked(x, z, r = 0.4) {
-  if (view.inside) return blockedInside(x, z, r);
-  if (x < BOUNDS.minX || x > BOUNDS.maxX || z < BOUNDS.minZ || z > BOUNDS.maxZ) return true;
-  if (isWater(x, z)) return true;
-  for (const b of colliders.boxes) {
-    if (x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ) return true;
-  }
-  for (const c of colliders.circles) {
-    const dx = x - c.x, dz = z - c.z, rr = r + c.r;
-    if (dx * dx + dz * dz < rr * rr) return true;
-  }
-  return false;
+  return groundHeight(x, z);
 }
 
 // Small seeded random so the estate is the same on every visit.
