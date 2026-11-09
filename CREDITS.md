@@ -1,0 +1,40 @@
+# Credits
+
+All third-party assets are released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+(public domain). Credit is not required, but these creators deserve it.
+
+## Poly Haven — [polyhaven.com](https://polyhaven.com)
+
+Sky and lighting
+- [Kloofendal 48d Partly Cloudy (Pure Sky)](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) HDRI, 2K
+
+Textures (1K, diffuse + normal + ARM)
+- [Castle Wall Slates](https://polyhaven.com/a/castle_wall_slates): castle and dining hall walls
+- [Roof Slates 02](https://polyhaven.com/a/roof_slates_02): roofs
+- [Leafy Grass](https://polyhaven.com/a/leafy_grass): lawns
+- [Gravel Road](https://polyhaven.com/a/gravel_road): paths and the drive
+- [Forest Leaves 02](https://polyhaven.com/a/forest_leaves_02): woodland floor and hills
+- [Brown Mud 02](https://polyhaven.com/a/brown_mud_02): riverbanks, pond edge, garden beds
+- [Wood Planks](https://polyhaven.com/a/wood_planks): bridge and bed edging
+
+Models (1K)
+- [Painted Wooden Bench](https://polyhaven.com/a/painted_wooden_bench)
+- [Street Lamp 01](https://polyhaven.com/a/street_lamp_01)
+- [Large Iron Gate](https://polyhaven.com/a/large_iron_gate)
+- [Fern 02](https://polyhaven.com/a/fern_02)
+- [Wooden Lantern 01](https://polyhaven.com/a/wooden_lantern_01)
+
+## KayKit by Kay Lousberg — [kaylousberg.com](https://kaylousberg.com)
+
+- [KayKit Character Pack: Adventurers](https://kaylousberg.itch.io/kaykit-adventurers): all characters and their
+  animations. The models were trimmed to the body meshes and the seven animations the game uses.
+- [KayKit Medieval Hexagon Pack](https://kaylousberg.itch.io/kaykit-medieval-hexagon): trees, rocks, water lilies,
+  water plants, flags, barrels, crates and a bucket.
+
+Licence files: `public/assets/characters/LICENSE-KayKit-Adventurers.txt` and
+`public/assets/models/kaykit/LICENSE-KayKit-Medieval-Hexagon.txt`.
+
+## Code
+
+- [Three.js](https://threejs.org) (MIT)
+- [Vite](https://vite.dev) (MIT)

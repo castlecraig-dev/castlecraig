@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Castle Craig Quest</title>
+  <meta name="description" content="Explore the grounds of Castle Craig in 3D and complete quests.">
+  <meta name="theme-color" content="#1d2b22">
+</head>
+<body>
+  <div id="game"></div>
+
+  <section id="hud">
+    <h1>Castle Craig Quest</h1>
+    <h2>Quests</h2>
+    <ul id="quest-log"></ul>
+    <h2>Carrying</h2>
+    <ul id="inventory"></ul>
+    <button id="reset" type="button">Restart game</button>
+  </section>
+
+  <canvas id="minimap" width="180" height="150" aria-label="Map"></canvas>
+  <div id="timer" hidden></div>
+  <div id="prompt" hidden></div>
+  <div id="toast" hidden></div>
+  <p id="help">WASD move · Shift run · drag to look · scroll to zoom · E talk</p>
+
+  <div id="dialogue" hidden role="dialog" aria-live="polite">
+    <p id="dialogue-name"></p>
+    <p id="dialogue-text"></p>
+    <p class="hint">Press <kbd>E</kbd> / <kbd>Space</kbd> or tap to continue</p>
+  </div>
+
+  <div id="joystick" hidden><div id="joystick-knob"></div></div>
+  <button id="action" type="button">Talk</button>
+
+  <div id="loading">
+    <h1>Castle Craig Quest</h1>
+    <div class="track"><div id="loading-bar"></div></div>
+    <p id="loading-text">Loading the grounds…</p>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
