@@ -237,5 +237,13 @@ export function buildSideQuests(ctx) {
   // items in Michael's stash only turn up once he's gone
   const itemReady = (id) => (ITEMS[id].after === 'michael' ? !!state.michaelBanished && active('stash') : true);
 
-  return { talk, talkOther, promptText, update, progress, itemReady, get nightActive() { return !!night; } };
+  // Where to go while the post timer is running: residents still holding letters, then the postbox.
+  function objectives() {
+    if (postTimer === null || !active('letters')) return [];
+    const left = writers.filter((w) => !state.letters?.includes(w.def.letter));
+    if (left.length) return left.map((w) => ({ x: w.def.x, z: w.def.z, name: 'Letter' }));
+    return [{ x: POSTBOX.x, z: POSTBOX.z, name: 'Postbox' }];
+  }
+
+  return { objectives, talk, talkOther, promptText, update, progress, itemReady, get nightActive() { return !!night; } };
 }

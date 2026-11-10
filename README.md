@@ -66,7 +66,9 @@ Walk through the house's front door to go inside. The interior has the Front Hal
 staircase, modelled on photos of the real rooms and arranged to fit the real building's footprint (the real
 floor plans aren't public, so room positions are a best fit). Walk back out through the front door to return to the grounds.
 
-Hidden items lie in the grass and only glint when you're right next to them, so listen to the hints.
+Hidden items lie in the grass and only glint when you're right next to them, so listen to the hints. Quests against the clock are
+different: while the timer runs, each target gets a light beam, a minimap marker and an on-screen arrow with the
+distance.
 
 ## Building and deploying
 

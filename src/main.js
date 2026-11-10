@@ -754,7 +754,7 @@ function start(assets) {
       if (!itemAvailable(id)) continue;
       const owner = NPCS.find((n) => (n.quest.items || [n.quest.item]).includes(id));
     }
-    if (run) { const cp = run.npc.def.quest.checkpoints[run.idx]; dot(cp.x, cp.z, 5, '#ffcc55'); }
+    for (const o of objectives()) dot(o.x, o.z, 5, '#7fe8ff');
     if (carryingVape()) dot(patrol.x, patrol.z, 3.5, '#ff4a3a');
     if (!michael.banished) dot(...michael.pos, 3.5, '#a050e0');
     if (isActive(keeper.def.id)) for (const a of animals.lost) if (a.state === 'follow') dot(a.x, a.z, 3.5, '#fff3c0'); // only the ones you've found
@@ -908,6 +908,38 @@ function start(assets) {
     $('action').classList.toggle('ready', !!(n || a || alpaca) || !dlg.hidden);
   }
 
+  // ---------- objective markers for quests against the clock ----------
+  const beacons = Array.from({ length: 4 }, () => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 80, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: '#7fe8ff', transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false }));
+    m.visible = false;
+    outside.add(m);
+    return m;
+  });
+  function objectives() {
+    const list = sideq.objectives();
+    if (run) { const cp = run.npc.def.quest.checkpoints[run.idx]; list.unshift({ x: cp.x, z: cp.z, name: cp.name.replace(/^the /, '').replace(/^./, (c) => c.toUpperCase()) }); }
+    return list;
+  }
+  function updateObjectives(t) {
+    const list = L.view.inside ? [] : objectives();
+    beacons.forEach((b, i) => {
+      const o = list[i];
+      b.visible = !!o;
+      if (!o) return;
+      b.position.set(o.x, L.groundHeight(o.x, o.z) + 40, o.z);
+      b.material.opacity = 0.18 + Math.sin(t * 3 + i) * 0.06;
+    });
+    const el = $('objective');
+    if (!list.length) { el.hidden = true; return; }
+    let best = list[0], bd = Infinity;
+    for (const o of list) { const d = Math.hypot(o.x - state.x, o.z - state.z); if (d < bd) { bd = d; best = o; } }
+    const f = cam.yaw + Math.PI, a = Math.atan2(best.x - state.x, best.z - state.z);
+    el.hidden = false;
+    el.querySelector('.arrow').style.transform = `rotate(${f - a}rad)`;
+    el.querySelector('.label').textContent = `${best.name} · ${Math.round(bd)} m`;
+  }
+
   // ---------- going in and out of the castle ----------
   const IN = L.INTERIOR;
   const ROOM_NAMES = { hall: 'Front Hall', quiet: 'Quiet Room', stairs: 'Staircase' };
@@ -1029,6 +1061,7 @@ function start(assets) {
     if (!L.view.inside) animals.update(dt, t, { x: state.x, z: state.z, heading: facing });
     updateQuests(dt, realDt);
     sideq.update(dt, realDt, !dlg.hidden);
+    updateObjectives(t);
     updateDoors();
     updateCamera(dt);
     updatePrompt();
