@@ -12,14 +12,15 @@ export const MICHAEL = {
   name: 'Michael',
   reward: { points: 300, badge: 'Unbreakable' },
   lines: [
-    "Go on, one won't hurt.",
-    'Nobody would ever know.',
-    "You've earned a drink after today.",
-    'Just this once. Then you can start again on Monday.',
+    "Fancy a drink? I've got a bottle of vodka right here.",
+    "Go on, one won't hurt. Nobody would ever know.",
+    "I can get you anything you want. Pills, powder, whatever helps.",
+    "You've earned a drink after today, surely.",
+    "Just this once. Then you can start again on Monday.",
     "You're not like the others here. You can handle it.",
-    'I know a pub just down the road...',
+    "First one's free. Think of it as a gift.",
   ],
-  taunts: ['You know you want to.', 'Why fight it?', 'Remember how good it felt?', 'Everyone slips up.'],
+  taunts: ['Just a little sip?', "Go on, take one. It'll take the edge off.", 'Remember how good it felt?', 'Everyone slips up.', "I've got whatever you need.", 'One drink. Who would know?'],
   route: [[...L.houseToWorld(-6, -40)], [SHELTER.x + 6, SHELTER.z - 4], [-20, 120], [60, 196], [52, 300], [24, 440], [-8, 60]],
 };
 
@@ -34,7 +35,7 @@ export function buildMichael(scene, { char, onWin, onLose, say, toast, isBusy })
   tag.className = 'npc-tag villain';
   tag.innerHTML = '<span class="bubble"></span><span class="name">Michael</span>';
   const label = new CSS2DObject(tag);
-  label.position.set(0, 2.4, 0);
+  label.position.set(0, 2.9, 0); // he's tall
   char.root.add(label);
   const bubble = tag.querySelector('.bubble');
   let lineTimer = 0, lineIdx = 0;

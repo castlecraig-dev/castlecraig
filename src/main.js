@@ -141,9 +141,50 @@ function start(assets) {
   });
 
   // ----- Michael, who wanders about tempting people -----
+  // Very tall, rake-thin and pale, with a bottle in one hand and a bag of pills in the other.
+  function makeMichael() {
+    const c = new Character(assets.chars.guide, { height: 2.5, clone: true });
+    // recolour his texture: pale white skin, everything else a black outfit
+    c.root.traverse((o) => {
+      if (!o.isMesh || !o.material.map) return;
+      const src = o.material.map, img = src.image;
+      const cv = document.createElement('canvas');
+      cv.width = img.width; cv.height = img.height;
+      const g = cv.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, cv.width, cv.height), d = px.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], gr = d[i + 1], b = d[i + 2];
+        const skin = r > 140 && r > gr && gr > b && r - b > 35 && r - b < 140;
+        const v = (r + gr + b) / 3;
+        if (skin) { const k = 0.85 + (v / 255) * 0.15; d[i] = 246 * k; d[i + 1] = 240 * k; d[i + 2] = 236 * k; }
+        else { const k = 0.18 + (v / 255) * 0.22; d[i] = 255 * k * 0.9; d[i + 1] = 255 * k * 0.9; d[i + 2] = 255 * k; }
+      }
+      g.putImageData(px, 0, 0);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.flipY = src.flipY; tex.colorSpace = src.colorSpace; tex.magFilter = src.magFilter; tex.minFilter = src.minFilter;
+      o.material = o.material.clone();
+      o.material.map = tex;
+    });
+    const scaler = c.root.children[0];
+    scaler.scale.x *= 0.68; scaler.scale.z *= 0.68;
+    c.root.updateMatrixWorld(true);
+    const hold = (bone, item, rx) => {
+      const b = c.root.getObjectByName(bone);
+      if (!b) return;
+      const ws = b.getWorldScale(new THREE.Vector3());
+      const m = makeItemMesh(item);
+      m.scale.multiply(new THREE.Vector3(1 / ws.x, 1 / ws.y, 1 / ws.z)).multiplyScalar(0.75);
+      m.rotation.x = rx;
+      b.add(m);
+    };
+    hold('handslot.r', 'bottle', 0.3);
+    hold('handslot.l', 'bag', -0.2);
+    return c;
+  }
   const battleHud = { willpower: 100, hold: 100 };
   const michael = buildMichael(outside, {
-    char: makeChar('cook', '#5a3050'),
+    char: makeMichael(),
     say: (...a) => say(...a),
     toast: (m) => toast(m),
     isBusy: () => !dlg.hidden,
