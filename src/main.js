@@ -157,13 +157,14 @@ function start(assets) {
         const r = d[i], gr = d[i + 1], b = d[i + 2];
         const skin = r > 140 && r > gr && gr > b && r - b > 35 && r - b < 140;
         const v = (r + gr + b) / 3;
-        if (skin) { const k = 0.85 + (v / 255) * 0.15; d[i] = 246 * k; d[i + 1] = 240 * k; d[i + 2] = 236 * k; }
-        else { const k = 0.18 + (v / 255) * 0.22; d[i] = 255 * k * 0.9; d[i + 1] = 255 * k * 0.9; d[i + 2] = 255 * k; }
+        if (skin) { const k = 0.9 + (v / 255) * 0.1; d[i] = 255 * k; d[i + 1] = 228 * k; d[i + 2] = 212 * k; } // warm pale: the sky light cools it
+        else { const k = 0.18 + (v / 255) * 0.22; d[i] = 255 * k; d[i + 1] = 255 * k * 0.97; d[i + 2] = 255 * k * 0.94; }
       }
       g.putImageData(px, 0, 0);
       const tex = new THREE.CanvasTexture(cv);
       tex.flipY = src.flipY; tex.colorSpace = src.colorSpace; tex.magFilter = src.magFilter; tex.minFilter = src.minFilter;
       o.material = o.material.clone();
+      o.material.color.set('#ffffff'); // don't inherit another character's tint from the shared base model
       o.material.map = tex;
     });
     const scaler = c.root.children[0];
