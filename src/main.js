@@ -1002,7 +1002,11 @@ function start(assets) {
     state.inside = inside;
     outside.visible = !inside;
     interior.group.visible = inside;
-    if (inside) interior.showFloor(state.z - L.INTERIOR.z < L.UPSTAIRS_Z);
+    if (inside) {
+      // upstairs only if we're already standing upstairs (e.g. a saved game); coming in the front door is always the ground floor
+      const lx = state.x - L.INTERIOR.x, lz = state.z - L.INTERIOR.z;
+      interior.showFloor(Math.abs(lx) < 100 && lz > -100 && lz < L.UPSTAIRS_Z);
+    }
     for (const l of outdoorLabels) l.visible = !inside;
     applyLighting();
     if (inside) cam.dist = Math.min(cam.dist, 4.5);
