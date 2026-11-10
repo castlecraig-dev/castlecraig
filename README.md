@@ -59,6 +59,10 @@ press E to confront him. In the battle he circles you, throwing temptations that
 (or tap **Resist**) to fire affirmations back until his hold breaks and he's banished from the estate. If your
 willpower runs out, you take a breath back at the house and can try again.
 
+Banishing Michael isn't the end of him. Every couple of minutes he turns up again somewhere ahead of you on the
+grounds and walks over to try his luck. Confront him for a rematch (he gets a little quicker each time, and each
+win is worth bonus points), or walk away and he'll slink off until next time. He never follows you indoors.
+
 Every quest gives recovery points and a badge, shown in the quest panel. The dining hall dash also earns new
 running shoes (15% faster running), and finishing everything earns the Castle Craig Graduate badge.
 

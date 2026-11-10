@@ -189,10 +189,12 @@ function start(assets) {
     say: (...a) => say(...a),
     toast: (m) => toast(m),
     isBusy: () => !dlg.hidden,
-    onWin: () => {
+    onWin: (returning) => {
       state.michaelBanished = true;
-      grant(MICHAEL.reward);
+      state.michaelDefeats = (state.michaelDefeats || 0) + 1;
+      grant(returning ? { points: 60, badge: MICHAEL.reward.badge } : MICHAEL.reward);
       $('battle').hidden = true;
+      nextVisit = 90 + Math.random() * 90;
       save(); renderHud();
     },
     onLose: () => {
@@ -205,6 +207,15 @@ function start(assets) {
   });
   outdoorLabels.push(michael.label);
   if (state.michaelBanished) michael.banishNow();
+  // Once you've beaten him, he keeps turning up again somewhere ahead of you.
+  let nextVisit = 90 + Math.random() * 90;
+  function updateMichaelVisits(dt) {
+    if (!state.michaelBanished || !michael.banished || L.view.inside || !dlg.hidden || run || michael.mode === 'battle') return;
+    nextVisit -= dt;
+    if (nextVisit > 0) return;
+    nextVisit = 90 + Math.random() * 90;
+    if (michael.reappear(state, facing)) toast('You feel a chill... Michael is back.');
+  }
   function confrontMichael() {
     state.michaelMet = true;
     say('Michael', [MICHAEL.lines[Math.floor(Math.random() * MICHAEL.lines.length)], "Oh, you think you can stop me? Let's see how strong you really are."], () => {
@@ -1119,6 +1130,7 @@ function start(assets) {
     for (const a of ambient) a.char.update(dt);
     updateSmoke(dt, t);
     if (!L.view.inside) michael.update(dt, t, state, battleHud);
+    updateMichaelVisits(realDt);
     const fighting = michael.mode === 'battle';
     $('battle').hidden = !fighting;
     $('resist').hidden = !fighting;
@@ -1158,7 +1170,7 @@ function start(assets) {
     ]);
   }
 
-  window.__game = { sideq, michael, battleHud, state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
+  window.__game = { setVisit: (s) => { nextVisit = s; }, sideq, michael, battleHud, state, act, L, npcs, ITEMS, renderer, scene, camera, composer, cam, patrol, renderHud, moveThroughDoor, animals }; // handy for debugging in the console
 }
 
 // ---------- item models ----------
