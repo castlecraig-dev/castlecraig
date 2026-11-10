@@ -984,13 +984,14 @@ function start(assets) {
 
   // ---------- going in and out of the castle ----------
   const IN = L.INTERIOR;
-  const ROOM_NAMES = { hall: 'Front Hall', quiet: 'Quiet Room', stairs: 'Staircase' };
+  const ROOM_NAMES = { hall: 'Front Hall', quiet: 'Quiet Room', stairs: 'Staircase', drawing: 'Drawing Room', common: 'Common Room', therapy: 'Group Therapy Room', corridor: 'Bedroom Corridor', bedroomA: 'Bedroom', bedroomB: 'Bedroom' };
   let transitioning = false, currentRoom = null;
   function setInside(inside) {
     L.view.inside = inside;
     state.inside = inside;
     outside.visible = !inside;
     interior.group.visible = inside;
+    if (inside) interior.showFloor(state.z - L.INTERIOR.z < L.UPSTAIRS_Z);
     for (const l of outdoorLabels) l.visible = !inside;
     applyLighting();
     if (inside) cam.dist = Math.min(cam.dist, 4.5);
@@ -1046,11 +1047,31 @@ function start(assets) {
       setTimeout(() => { transitioning = false; }, 400);
     }, 350);
   }
+  function changeFloor(up) {
+    transitioning = true;
+    $('fade').classList.add('on');
+    setTimeout(() => {
+      interior.showFloor(up);
+      if (up) { state.x = IN.x - 6.6; state.z = IN.z - 40.5; facing = Math.PI / 2; cam.yaw = facing + Math.PI; }
+      else { state.x = IN.x - 6.0; state.z = IN.z - 8.4; facing = 0; cam.yaw = Math.PI; }
+      currentRoom = null;
+      updatePlayer(0); updateCamera(1); camera.position.copy(camPos);
+      $('fade').classList.remove('on');
+      setTimeout(() => { transitioning = false; }, 400);
+    }, 350);
+  }
+
   function updateDoors() {
     if (transitioning || !dlg.hidden) return;
     const [hx, hz] = L.worldToHouse(state.x, state.z);
     if (!L.view.inside && Math.abs(hx) < 1.2 && hz > -3.05 && hz < -2) moveThroughDoor(true);
     else if (L.view.inside && state.z - IN.z > 5.35) moveThroughDoor(false);
+    else if (L.view.inside) {
+      // up and down the stairs
+      const lx = state.x - IN.x, lz = state.z - IN.z;
+      if (lz > L.UPSTAIRS_Z && lx < L.STAIRS.maxX && lz < -9.0) changeFloor(true);
+      else if (lz < L.UPSTAIRS_Z && lx < -7.8) changeFloor(false);
+    }
     if (L.view.inside) {
       const lx = state.x - IN.x, lz = state.z - IN.z;
       const room = Object.keys(L.ROOMS).find((k) => { const r = L.ROOMS[k]; return lx >= r.minX && lx <= r.maxX && lz >= r.minZ && lz <= r.maxZ; });
@@ -1061,17 +1082,19 @@ function start(assets) {
 
   // floor plan for the minimap while indoors
   function drawInteriorMap() {
-    const w = mini.width, h = mini.height, ext = { minX: -21, maxX: 8, minZ: -12, maxZ: 6.5 };
+    const up = state.z - IN.z < L.UPSTAIRS_Z;
+    const onFloor = (r) => (r.maxZ < L.UPSTAIRS_Z) === up;
+    const w = mini.width, h = mini.height, ext = up ? { minX: -9.5, maxX: 9.5, minZ: -49, maxZ: -38 } : { minX: -21, maxX: 22, minZ: -10.5, maxZ: 6.5 };
     const k = Math.min(w / (ext.maxX - ext.minX), h / (ext.maxZ - ext.minZ));
     const ox = (w - (ext.maxX - ext.minX) * k) / 2, oz = (h - (ext.maxZ - ext.minZ) * k) / 2;
     const mx = (x) => ox + (x - ext.minX) * k, mz = (z) => oz + (z - ext.minZ) * k;
     mctx.fillStyle = '#2a2420'; mctx.fillRect(0, 0, w, h);
     mctx.fillStyle = '#d9c9a3';
-    for (const r of [...Object.values(L.ROOMS), ...Object.values(L.DOORWAYS)]) mctx.fillRect(mx(r.minX), mz(r.minZ), (r.maxX - r.minX) * k, (r.maxZ - r.minZ) * k);
+    for (const r of [...Object.values(L.ROOMS), ...Object.values(L.DOORWAYS)].filter(onFloor)) mctx.fillRect(mx(r.minX), mz(r.minZ), (r.maxX - r.minX) * k, (r.maxZ - r.minZ) * k);
     mctx.fillStyle = '#7a5a3a'; mctx.font = '9px Georgia';
     for (const [key, name] of Object.entries(ROOM_NAMES)) {
       const r = L.ROOMS[key];
-      mctx.fillText(name, mx(r.minX) + 3, mz(r.minZ) + 10);
+      if (onFloor(r) && r.maxX - r.minX > 3) mctx.fillText(name, mx(r.minX) + 3, mz(r.minZ) + 10);
     }
     mctx.save();
     mctx.translate(mx(state.x - IN.x), mz(state.z - IN.z));

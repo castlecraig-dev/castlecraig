@@ -6,13 +6,14 @@ import * as L from './layout.js';
 import * as TX from './textures.js';
 import { box, cyl, merged, pbrMat, TEX_M } from './world.js';
 import { normalised } from './assets.js';
+import { buildMoreRooms } from './rooms.js';
 
 const { ROOMS } = L;
 const WALL = 0.2; // wall thickness
 
 // A straight wall with openings (doors and windows). axis 'x' runs along x at z = at.
 // openings: [{ from, to, bottom, top }] in metres along the wall.
-function wall(geos, axis, at, a, b, h, openings = [], { y0 = 0, t = WALL } = {}) {
+export function wall(geos, axis, at, a, b, h, openings = [], { y0 = 0, t = WALL } = {}) {
   const piece = (u0, u1, ya, yb) => {
     if (u1 - u0 < 0.001 || yb - ya < 0.001) return;
     const mid = (u0 + u1) / 2, ym = (ya + yb) / 2;
@@ -29,7 +30,7 @@ function wall(geos, axis, at, a, b, h, openings = [], { y0 = 0, t = WALL } = {})
 }
 
 // Four walls around a room rect, just outside it. open: { n, s, e, w } opening lists.
-function roomWalls(geos, r, h, open = {}, opts = {}) {
+export function roomWalls(geos, r, h, open = {}, opts = {}) {
   const t = opts.t ?? WALL, inset = opts.inset ?? 0; // inset > 0 places a lining inside the room
   const off = inset ? -inset - t / 2 : t / 2;
   wall(geos, 'x', r.minZ - off, r.minX - (inset ? 0 : t), r.maxX + (inset ? 0 : t), h, open.n, opts);
@@ -38,7 +39,7 @@ function roomWalls(geos, r, h, open = {}, opts = {}) {
   wall(geos, 'z', r.maxX + off, r.minZ, r.maxZ, h, open.e, opts);
 }
 
-function floor(r, mat, y = 0) {
+export function floor(r, mat, y = 0) {
   const w = r.maxX - r.minX, d = r.maxZ - r.minZ;
   const m = new THREE.Mesh(box(w, 0.05, d, (r.minX + r.maxX) / 2, y - 0.025, (r.minZ + r.maxZ) / 2), mat);
   m.receiveShadow = true;
@@ -61,7 +62,7 @@ function groinVault(cx, cz, bw, bd, spring, rise) {
   return g;
 }
 
-function tinted(root, color, extra = {}) {
+export function tinted(root, color, extra = {}) {
   const o = root.clone(true);
   o.traverse((c) => {
     if (!c.isMesh) return;
@@ -72,7 +73,7 @@ function tinted(root, color, extra = {}) {
   return o;
 }
 
-function put(group, model, x, y, z, ry = 0, s = 1) {
+export function put(group, model, x, y, z, ry = 0, s = 1) {
   const o = model.clone(true);
   o.position.set(x, y, z);
   o.rotation.y = ry;
@@ -82,7 +83,7 @@ function put(group, model, x, y, z, ry = 0, s = 1) {
   return o;
 }
 
-const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z); // turn a model's front (+z) towards a point
+export const face = (x, z, tx, tz) => Math.atan2(tx - x, tz - z); // turn a model's front (+z) towards a point
 
 export function buildInterior(scene, { assets }) {
   const T = assets.tex, P = assets.ph;
@@ -110,6 +111,8 @@ export function buildInterior(scene, { assets }) {
     skirting: new THREE.MeshStandardMaterial({ color: '#3b2618', roughness: 0.5 }),
     wallpaper: new THREE.MeshStandardMaterial({ map: TX.wallpaper(), roughness: 0.9 }),
     tiles: new THREE.MeshStandardMaterial({ map: TX.greenTiles(), roughness: 0.25 }),
+    delft: new THREE.MeshStandardMaterial({ map: TX.delftTiles(), roughness: 0.2 }),
+    paleWood: pbrMat(T.wood, { color: '#d9b88e' }),
     slate: new THREE.MeshStandardMaterial({ color: '#2a2c30', roughness: 0.7 }),
     soot: new THREE.MeshStandardMaterial({ color: '#0d0b0a', roughness: 1 }),
     brass: new THREE.MeshStandardMaterial({ color: '#c9a050', metalness: 1, roughness: 0.3 }),
@@ -125,9 +128,9 @@ export function buildInterior(scene, { assets }) {
   // ---------- openings ----------
   const hallOpen = {
     s: [{ from: -1.1, to: 1.1, bottom: 0, top: 2.9 }, { from: -5.2, to: -3.6, bottom: 0.5, top: 3.3 }, { from: 3.6, to: 5.2, bottom: 0.5, top: 3.3 }],
-    e: [{ from: -3.4, to: -1.6, bottom: 0.5, top: 3.3 }, { from: 1.6, to: 3.4, bottom: 0.5, top: 3.3 }],
+    e: [{ from: -1.1, to: 1.1, bottom: 0, top: 2.8 }], // doorway into the Drawing Room
     w: [{ from: 1.4, to: 3.6, bottom: 0, top: 2.8 }],
-    n: [{ from: -6.2, to: -3.6, bottom: 0, top: 3.2 }],
+    n: [{ from: -6.2, to: -3.6, bottom: 0, top: 3.2 }, { from: 3.6, to: 5.2, bottom: 0, top: 2.6 }],
   };
   const quietOpen = {
     s: [-17.2, -13.5, -9.8].map((x) => ({ from: x - 0.8, to: x + 0.8, bottom: 0.6, top: 3.3 })),
@@ -216,7 +219,6 @@ export function buildInterior(scene, { assets }) {
       for (const s of [-1, 1]) curtains.push(o.mk(0.55, o.h + 0.6, 0.12, o.mid + s * (o.w / 2 + 0.2), o.ym + 0.2, at + inward * 0.25));
       curtains.push(o.mk(o.w + 1.4, 0.4, 0.16, o.mid, o.top + 0.45, at + inward * 0.25));
     };
-    for (const o of hallOpen.e) withCurtains(sash('z', H.maxX + 0.1, o.from, o.to, o.bottom, o.top, -1), H.maxX + 0.1, -1);
     for (const o of hallOpen.s.slice(1)) withCurtains(sash('x', H.maxZ + 0.1, o.from, o.to, o.bottom, o.top, -1), H.maxZ + 0.1, -1);
     for (const o of quietOpen.s) sash('x', Q.maxZ + 0.1, o.from, o.to, o.bottom, o.top, -1);
     for (const o of stairOpen.n) sash('x', S.minZ - 0.1, o.from, o.to, o.bottom, o.top, 1);
@@ -244,7 +246,8 @@ export function buildInterior(scene, { assets }) {
   const fireplace = (x, wallZ, style) => {
     const z = wallZ + 0.2;
     const surround = [], dark = [], hearth = [];
-    const m = style === 'marble' ? mats.greyMarble : mats.oak;
+    const m = style === 'marble' ? mats.greyMarble : style === 'delft' ? mats.paleWood : mats.oak;
+    const tileMat = style === 'delft' ? mats.delft : mats.tiles;
     surround.push(box(0.45, 1.3, 0.38, x - 0.95, 0.65, z), box(0.45, 1.3, 0.38, x + 0.95, 0.65, z),
       box(2.35, 0.36, 0.4, x, 1.48, z), box(2.75, 0.08, 0.52, x, 1.7, z + 0.04));
     dark.push(box(1.45, 1.3, 0.32, x, 0.65, z - 0.04));
@@ -261,8 +264,8 @@ export function buildInterior(scene, { assets }) {
       surround.push(box(2.7, 1.9, 0.22, x, 2.7, wallZ + 0.11), box(2.95, 0.14, 0.42, x, 3.7, wallZ + 0.21));
       for (const dx of [-1.25, 1.25]) surround.push(box(0.2, 0.5, 0.36, x + dx, 3.4, wallZ + 0.24), box(0.14, 1.2, 0.08, x + dx, 2.4, wallZ + 0.25));
       for (const dx of [-0.6, 0, 0.6]) surround.push(box(0.5, 0.8, 0.05, x + dx, 2.55, wallZ + 0.24));
-      group.add(merged(surround, m), merged(dark, mats.soot), merged(hearth, mats.tiles),
-        merged([box(0.25, 1.3, 0.3, x - 0.6, 0.65, z + 0.02), box(0.25, 1.3, 0.3, x + 0.6, 0.65, z + 0.02)], mats.tiles));
+      group.add(merged(surround, m), merged(dark, mats.soot), merged(hearth, tileMat),
+        merged([box(0.25, 1.3, 0.3, x - 0.6, 0.65, z + 0.02), box(0.25, 1.3, 0.3, x + 0.6, 0.65, z + 0.02)], tileMat));
     }
     // the fire
     const fire = new THREE.Group();
@@ -389,9 +392,9 @@ export function buildInterior(scene, { assets }) {
     }
     L.addInBox(ot[0], ot[1], 0.7, 1.0);
     put(group, olive, -4.9, 0, 3.3, face(-4.9, 3.3, -3.6, 2.2)); L.addInCircle(-4.9, 3.3, 0.5);
-    put(group, drawers, H.maxX - 0.5, 0, 0, -Math.PI / 2); L.addInBox(H.maxX - 0.45, 0, 0.9, 1.7);
-    put(group, mirror, H.maxX - 0.04, 1.35, 0, -Math.PI / 2);
-    for (const dz of [-0.5, 0.5]) put(group, vase, H.maxX - 0.5, 1.1, dz);
+    put(group, drawers, H.maxX - 0.5, 0, 2.9, -Math.PI / 2); L.addInBox(H.maxX - 0.45, 2.9, 0.9, 1.7);
+    put(group, mirror, H.maxX - 0.04, 1.35, 2.9, -Math.PI / 2);
+    for (const dz of [-0.5, 0.5]) put(group, vase, H.maxX - 0.5, 1.1, 2.9 + dz);
     for (const dx of [-1.1, 1.1]) put(group, vase, dx, 1.74, H.minZ + 0.25);
     put(group, sideTable, H.minX + 0.45, 0, 4.4, Math.PI / 2); put(group, plant, H.minX + 0.45, 0.6, 4.4);
     L.addInCircle(H.minX + 0.45, 4.4, 0.4);
@@ -478,7 +481,13 @@ export function buildInterior(scene, { assets }) {
     }
   }
 
-  return { group, lights, update };
+  const { upstairs } = buildMoreRooms(group, { assets, mats, lights, fireplace });
+  // Show one floor at a time (they're in separate places, and it keeps the light count down).
+  function showFloor(up) {
+    for (const c of group.children) c.visible = up ? c === upstairs : c !== upstairs;
+  }
+  showFloor(false);
+  return { group, lights, update, showFloor };
 }
 
 function mergeAll(geos) {

@@ -204,3 +204,93 @@ export function smokeTexture() {
     g.fillRect(0, 0, s, s);
   }, { repeat: false });
 }
+
+// ---------- more interior textures (from photos of the real rooms) ----------
+
+// Blue-and-white tiles for the therapy room fireplace.
+export function delftTiles() {
+  const r = rng(31);
+  return canvasTexture(128, (g, s) => {
+    g.fillStyle = '#e9eef4'; g.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 32) for (let x = 0; x < s; x += 32) {
+      g.strokeStyle = '#b8c4d4'; g.strokeRect(x + 0.5, y + 0.5, 31, 31);
+      g.strokeStyle = '#2f5aa8'; g.lineWidth = 2;
+      g.beginPath(); g.arc(x + 16, y + 16, 6 + r() * 4, 0, Math.PI * 2); g.stroke();
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + r() * 0.3; g.beginPath(); g.moveTo(x + 16, y + 16); g.lineTo(x + 16 + Math.cos(a) * 12, y + 16 + Math.sin(a) * 12); g.stroke(); }
+    }
+  });
+}
+
+// Grey-gold wallpaper with pale trailing branches, as in the bedrooms.
+export function botanicalWallpaper() {
+  const r = rng(44);
+  return canvasTexture(256, (g, s) => {
+    g.fillStyle = '#b4a690'; g.fillRect(0, 0, s, s);
+    g.strokeStyle = 'rgba(245,240,228,0.85)'; g.fillStyle = 'rgba(245,240,228,0.85)'; g.lineWidth = 1.6;
+    for (let b = 0; b < 6; b++) {
+      let x = r() * s, y = s;
+      g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 14; k++) {
+        const nx = x + (r() - 0.5) * 30, ny = y - 18;
+        g.quadraticCurveTo(x + (r() - 0.5) * 20, y - 9, nx, ny);
+        g.stroke();
+        for (const side of [-1, 1]) { g.beginPath(); g.ellipse(nx + side * 6, ny, 5, 2, side * 0.6, 0, Math.PI * 2); g.fill(); }
+        g.beginPath(); g.moveTo(nx, ny);
+        x = nx; y = ny;
+      }
+    }
+  });
+}
+
+// Tartan for throws and carpets: colours = [ground, stripe, accent].
+export function tartan(colours, size = 256) {
+  const [base, stripe, accent] = colours;
+  return canvasTexture(size, (g, s) => {
+    g.fillStyle = base; g.fillRect(0, 0, s, s);
+    g.globalAlpha = 0.55;
+    for (const [o, w, c] of [[0, s * 0.18, stripe], [s * 0.5, s * 0.18, stripe], [s * 0.3, s * 0.03, accent], [s * 0.8, s * 0.03, accent]]) {
+      g.fillStyle = c; g.fillRect(o, 0, w, s); g.fillRect(0, o, s, w);
+    }
+    g.globalAlpha = 1;
+    for (let y = 0; y < s; y += 2) { g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(0, y, s, 1); }
+  });
+}
+
+// Lilac floral curtain fabric.
+export function floralFabric() {
+  const r = rng(52);
+  return canvasTexture(256, (g, s) => {
+    g.fillStyle = '#f2ece4'; g.fillRect(0, 0, s, s);
+    for (let i = 0; i < 40; i++) {
+      const x = r() * s, y = r() * s;
+      g.strokeStyle = '#8a9a6a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 30, y + 20); g.stroke();
+      g.fillStyle = ['#9a7ab0', '#b896c8', '#7a5a90'][i % 3];
+      for (let p = 0; p < 5; p++) { const a = p / 5 * Math.PI * 2; g.beginPath(); g.arc(x + Math.cos(a) * 5, y + Math.sin(a) * 5, 4, 0, Math.PI * 2); g.fill(); }
+    }
+  });
+}
+
+// A cowhide rug.
+export function cowhide() {
+  const r = rng(61);
+  return canvasTexture(256, (g, s) => {
+    g.clearRect(0, 0, s, s);
+    g.fillStyle = '#efe7da';
+    g.beginPath();
+    for (let a = 0; a <= 24; a++) { const t = a / 24 * Math.PI * 2, rr = s * (0.38 + 0.08 * Math.sin(t * 4) + 0.04 * Math.sin(t * 9)); g.lineTo(s / 2 + Math.cos(t) * rr, s / 2 + Math.sin(t) * rr * 0.8); }
+    g.fill();
+    g.save(); g.clip();
+    for (let i = 0; i < 9; i++) {
+      g.fillStyle = r() < 0.5 ? '#5a3a24' : '#3a2618';
+      g.beginPath(); g.ellipse(r() * s, r() * s, 20 + r() * 40, 15 + r() * 30, r() * 3, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+  }, { repeat: false });
+}
+
+// An eight-by-eight chessboard.
+export function chessboard() {
+  return canvasTexture(128, (g, s) => {
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#3a2a1e' : '#e8dcc4'; g.fillRect(x * 16, y * 16, 16, 16); }
+  }, { repeat: false });
+}

@@ -62,9 +62,11 @@ willpower runs out, you take a breath back at the house and can try again.
 Every quest gives recovery points and a badge, shown in the quest panel. The dining hall dash also earns new
 running shoes (15% faster running), and finishing everything earns the Castle Craig Graduate badge.
 
-Walk through the house's front door to go inside. The interior has the Front Hall, the Quiet Room and the
-staircase, modelled on photos of the real rooms and arranged to fit the real building's footprint (the real
-floor plans aren't public, so room positions are a best fit). Walk back out through the front door to return to the grounds.
+Walk through the house's front door to go inside. The rooms are modelled on the photos and descriptions on
+castlecraig.co.uk's Facilities & Rooms page: the Front Hall, the Drawing Room (sage walls over oak panelling,
+brass chandeliers, big Georgian windows onto the front lawn), the Common Room, the Quiet Room, a Group Therapy
+Room with a ring of tub chairs, and upstairs a bedroom corridor with two bedrooms. They're arranged to fit the
+real building's footprint, but the real floor plans aren't public, so room positions are a best fit.
 
 Hidden items lie in the grass and only glint when you're right next to them, so listen to the hints. Quests against the clock are
 different: while the timer runs, each target gets a light beam, a minimap marker and an on-screen arrow with the
@@ -88,7 +90,8 @@ by default (fewer grass blades, smaller shadow maps, no ferns).
 | Path | What it is |
 | --- | --- |
 | `src/main.js` | Renderer, lighting, camera, controls, quest logic, the Night Porter's patrol and the HUD |
-| `src/interior.js` | The castle interior: Front Hall, Quiet Room and staircase |
+| `src/interior.js` | The house interior: Front Hall, Quiet Room and staircase |
+| `src/rooms.js` | More rooms: Drawing Room, Common Room, Group Therapy Room and the bedrooms upstairs |
 | `src/world.js` | Builds the estate from the map data: terrain, hills, buildings, the house, walls, hedges, trees, grass, the lake and the smoking shelter |
 | `src/animals.js` | Alpacas, rabbits, garden birds and rooks |
 | `src/villain.js` | Michael, who wanders the grounds, and the battle to banish him |

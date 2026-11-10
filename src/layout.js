@@ -168,14 +168,30 @@ export const ROOMS = {
   hall: { minX: -7, maxX: 7, minZ: -5, maxZ: 5, ceil: 5.6 },
   quiet: { minX: -20, maxX: -7.4, minZ: -5, maxZ: 4, ceil: 4.2 },
   stairs: { minX: -7, maxX: -2, minZ: -9.6, maxZ: -5.4, ceil: 6 },
+  // west wing (x is mirrored, so it's +x here): the Drawing Room, with the Common Room behind it
+  drawing: { minX: 7.4, maxX: 21, minZ: -2, maxZ: 5, ceil: 4.6 },
+  common: { minX: 7.4, maxX: 21, minZ: -9.6, maxZ: -2.4, ceil: 4.0 },
+  // behind the hall, beside the stairs
+  therapy: { minX: -1.6, maxX: 7, minZ: -9.6, maxZ: -5.4, ceil: 4.0 },
+  // upstairs (a separate area reached from the top of the stairs)
+  corridor: { minX: -8, maxX: 8, minZ: -42, maxZ: -39, ceil: 3.0 },
+  bedroomA: { minX: -8, maxX: -0.2, minZ: -48, maxZ: -42.4, ceil: 3.0 },
+  bedroomB: { minX: 0.2, maxX: 8, minZ: -48, maxZ: -42.4, ceil: 3.0 },
 };
 export const DOORWAYS = {
   quiet: { minX: -7.6, maxX: -6.8, minZ: 1.4, maxZ: 3.6, ceil: 2.8 },
   stairs: { minX: -6.2, maxX: -3.6, minZ: -5.6, maxZ: -4.8, ceil: 3.2 },
   front: { minX: -1.1, maxX: 1.1, minZ: 4.9, maxZ: 5.9, ceil: 3 }, // leads back outside
+  drawing: { minX: 6.8, maxX: 7.6, minZ: -1.1, maxZ: 1.1, ceil: 2.8 },
+  common: { minX: 13, maxX: 15, minZ: -2.6, maxZ: -1.8, ceil: 2.6 },
+  therapy: { minX: 3.6, maxX: 5.2, minZ: -5.6, maxZ: -4.8, ceil: 2.6 },
+  bedroomA: { minX: -4.6, maxX: -3.4, minZ: -42.6, maxZ: -41.8, ceil: 2.4 },
+  bedroomB: { minX: 3.4, maxX: 4.6, minZ: -42.6, maxZ: -41.8, ceil: 2.4 },
+  upstairs: { minX: -8.6, maxX: -7.8, minZ: -41.6, maxZ: -39.4, ceil: 2.4 }, // back down the stairs
 };
+export const UPSTAIRS_Z = -30; // anything north of this (more negative) is the first floor
 const WALKABLE = [...Object.values(ROOMS), ...Object.values(DOORWAYS)];
-const CAMERA_SPACE = [...Object.values(ROOMS), DOORWAYS.quiet, DOORWAYS.stairs]; // not the front door gap
+const CAMERA_SPACE = [...Object.values(ROOMS), DOORWAYS.quiet, DOORWAYS.stairs, DOORWAYS.drawing, DOORWAYS.common, DOORWAYS.therapy, DOORWAYS.bedroomA, DOORWAYS.bedroomB]; // not the outside door gaps
 export const STAIRS = { minX: -6.8, maxX: -5.25, bottomZ: -5.8, topZ: -8.9, rise: 2.6 };
 
 export const inColliders = { boxes: [], circles: [] };
